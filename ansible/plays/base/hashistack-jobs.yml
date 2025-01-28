@@ -1,0 +1,8 @@
+---
+- name: nomad jobs
+  hosts: bastion
+
+  tasks:
+    - import_tasks: ./tasks/nomad-jobs.yml
+      vars:
+        GIT_REF: "latest-{{ ENVIRONMENT }}"

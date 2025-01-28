@@ -1,0 +1,7 @@
+server = false
+ports = {
+  http = -1
+  https = 8501
+}
+cert_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem"
+key_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem"

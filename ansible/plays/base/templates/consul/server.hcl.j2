@@ -1,0 +1,14 @@
+server = true
+bootstrap_expect = {{ CONSUL_SERVER_COUNT }} 
+connect {
+  enabled = true
+}
+ui_config {
+  enabled = true
+}
+auto_encrypt {
+  allow_tls = true
+}
+
+cert_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest.pem"
+key_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest-key.pem"

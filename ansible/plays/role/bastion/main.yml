@@ -1,0 +1,25 @@
+- name: Install service based on instance role
+  hosts: bastion
+
+  vars:
+    role: bastion
+
+  tasks:
+    - name: Debug the current role
+      ansible.builtin.debug:
+        var: role
+
+    - name: Install prism1 motd
+      template:
+        src: templates/99-prism1-motd.j2
+        dest: /etc/update-motd.d/99-prism1-motd
+        mode: 0755
+      become: true
+
+    # - include_tasks: ./tasks/start-nomad-job.yml
+    #   loop:
+    #     - service_name: traefik
+    #     - service_name: backend
+    #     - service_name: ml
+    #   loop_control:
+    #     loop_var: service

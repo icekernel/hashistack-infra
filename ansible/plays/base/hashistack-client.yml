@@ -1,0 +1,93 @@
+---
+- name: install hashistack packages
+  hosts: docker, eliza
+  tasks:
+    - import_tasks: ./tasks/hashistack-packages.yml
+
+- name: consul base configuration
+  hosts: docker, eliza
+  tasks:
+    - import_tasks: ./tasks/consul-base.yml
+
+- name: consul client configuration
+  hosts: docker, eliza
+
+  tasks:
+    - name: copy consul client cert
+      ansible.builtin.copy:
+        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
+        src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
+      become: true
+
+    - name: copy consul client key
+      ansible.builtin.copy:
+        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
+        src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
+      become: true
+
+    - name: template consul client.hcl
+      ansible.builtin.template:
+        src: ./templates/consul/client.hcl.j2
+        dest: /etc/consul.d/client.hcl
+      become: true
+
+- name: nomad base configuration
+  hosts: docker, eliza
+  tasks:
+    - import_tasks: ./tasks/nomad-base.yml
+
+- name: nomad client configuration
+  hosts: docker, eliza
+  tasks:
+    - name: install nomad docker driver dependencies
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        state: present
+      become: true
+      with_items:
+        - docker.io
+        - amazon-ecr-credential-helper
+
+    - name: configure amazon-ecr-credential-helper
+      ansible.builtin.template:
+        src: ./templates/nomad/docker-auth.json.j2
+        dest: /etc/docker-auth.json
+      become: true
+
+    - name: copy nomad client cert
+      ansible.builtin.copy:
+        dest: '/etc/nomad.d/{{ ENVIRONMENT }}-client.pem'
+        src: './files/nomad/{{ ENVIRONMENT }}-client.pem'
+      become: true
+
+    - name: copy nomad client key
+      ansible.builtin.copy:
+        dest: '/etc/nomad.d/{{ ENVIRONMENT }}-client-key.pem'
+        src: './files/nomad/{{ ENVIRONMENT }}-client-key.pem'
+      become: true
+
+    - name: template nomad client.hcl
+      ansible.builtin.template:
+        src: ./templates/nomad/client.hcl.j2
+        dest: /etc/nomad.d/client.hcl
+      become: true
+      vars:
+        NOMAD_GOSSIP_KEY: "{{ lookup('file', './files/nomad/'+ENVIRONMENT+'-gossip.key') }}"
+
+    - name: create resolved.conf.d
+      ansible.builtin.file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+      become: true
+
+    - name: template docker resolved config
+      ansible.builtin.template:
+        src: ./templates/resolved.conf.d/docker.conf.j2
+        dest: /etc/systemd/resolved.conf.d/docker.conf
+      become: true
+
+    - name: template docker-daemon.json
+      ansible.builtin.template:
+        src: ./templates/docker-daemon.json.j2
+        dest: /etc/docker/daemon.json
+      become: true

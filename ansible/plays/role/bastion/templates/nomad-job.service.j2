@@ -1,0 +1,14 @@
+[Unit]
+Description=Start {{ service.service_name }} Nomad Job
+Wants=network-online.target nomad.service
+After=network-online.target nomad.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/profile.d/nomad.sh
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/nomad job run /etc/nomad.d/jobs/{{ service.service_name }}.nomad
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

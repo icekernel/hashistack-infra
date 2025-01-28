@@ -1,0 +1,4 @@
+---
+user_accounts:
+  - username: conrado
+    ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGoethuGRssGr92X4s7tXX7i2InHGPqu2pLMT+btpFzU

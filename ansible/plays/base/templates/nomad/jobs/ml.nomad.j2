@@ -1,0 +1,77 @@
+job "ml" {
+
+  datacenters = ["{{ CONSUL_DATACENTER }}"]
+
+  group "ml" {
+
+    network {
+      port "ml" { to = "8000" }
+    }
+
+    count = 1
+
+    update {
+      max_parallel = 1
+      canary = 1
+      min_healthy_time = "30s"
+      healthy_deadline = "5m"
+      auto_revert = true
+      auto_promote = true
+    }
+
+    task "ml" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 320
+        memory_max = 400
+      }
+      env {
+        ML_ENVIRONMENT = "{{ NOMAD_ENV }}"
+        DJANGO_SECRET_KEY = "{{ DJANGO_ENV.DJANGO_SECRET_KEY }}"
+        BOOL__ALLOW_LOCAL_DEV_IP = "{{ DJANGO_ENV.BOOL__ALLOW_LOCAL_DEV_IP }}"
+        DATABASE_USER = "{{ DJANGO_ENV.DATABASE_USER }}"
+        DATABASE_PASSWORD = "{{ DJANGO_ENV.DATABASE_PASSWORD }}"
+        DB_PASSWORD = "{{ DJANGO_ENV.DB_PASSWORD }}"
+        DB_HOST = "{{ DJANGO_ENV.DB_HOST }}"
+        DB_PORT = "{{ DJANGO_ENV.DB_PORT }}"
+        MYSQL_READ_REPLICA_DB_PASSWORD = "{{ DJANGO_ENV.MYSQL_READ_REPLICA_DB_PASSWORD }}"
+        LEGACY_JWT_SECRET = "{{ DJANGO_ENV.LEGACY_JWT_SECRET }}"
+        CHECKR_WEBHOOK_SECRET = "{{ DJANGO_ENV.CHECKR_WEBHOOK_SECRET }}"
+        TWILIO_ACCOUNT_SID = "{{ DJANGO_ENV.TWILIO_ACCOUNT_SID }}"
+        TWILIO_AUTH_TOKEN = "{{ DJANGO_ENV.TWILIO_AUTH_TOKEN }}"
+        TWILIO_NORTH_AMERICA_PHONE = "{{ DJANGO_ENV.TWILIO_NORTH_AMERICA_PHONE }}"
+        INSURANCE_CLIENTID = "{{ DJANGO_ENV.INSURANCE_CLIENTID }}"
+        INSURANCE_APIKEY = "{{ DJANGO_ENV.INSURANCE_APIKEY }}"
+        INSURANCE_SERVICE = "{{ DJANGO_ENV.INSURANCE_SERVICE }}"
+        LEGACY_BACKEND = "{{ DJANGO_ENV.LEGACY_BACKEND }}"
+        BOOL__USE_STRIPE_GTW = "{{ DJANGO_ENV.BOOL__USE_STRIPE_GTW }}"
+        STRIPE_CALLBACK_URL = "{{ DJANGO_ENV.STRIPE_CALLBACK_URL }}"
+        STRIPE_API_KEY = "{{ DJANGO_ENV.STRIPE_API_KEY }}"
+        STRIPE_DRIVER_RETURN = "{{ DJANGO_ENV.STRIPE_DRIVER_RETURN }}"
+        STRIPE_DRIVER_REAUTH = "{{ DJANGO_ENV.STRIPE_DRIVER_REAUTH }}"
+        BOOL__DISABLE_CRON = "{{ DJANGO_ENV.BOOL__DISABLE_CRON }}"
+        LEGACY_DB_HOST = "{{ DJANGO_ENV.LEGACY_DB_HOST }}"
+        LEGACY_DB_USERNAME = "{{ DJANGO_ENV.LEGACY_DB_USERNAME }}"
+        LEGACY_DB_PASSWORD = "{{ DJANGO_ENV.LEGACY_DB_PASSWORD }}"
+        OPEN_AI_API_KEY = "{{ DJANGO_ENV.OPEN_AI_API_KEY }}"
+      }
+      config {
+        image = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-ml:{{ GIT_REF }}"
+        command = "python"
+        args = ["manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
+        ports = ["ml"]
+      }
+      service {
+        name     = "ml"
+        provider = "nomad"
+        port     = "ml"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.ml.rule=Host(`ml.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-ml.prism1.click`)",
+        ]
+      }
+    }
+  }
+
+}

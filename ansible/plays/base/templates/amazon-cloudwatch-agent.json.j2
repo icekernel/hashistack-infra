@@ -1,0 +1,123 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60
+  },
+  "metrics": {
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+{#          "active",#}
+{#          "available",#}
+{#          "available_percent",#}
+{#          "inactive",#}
+{#          "total",#}
+{#          "used",#}
+{#          "buffered",#}
+{#          "cached",#}
+{#          "free",#}
+          "used_percent"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "net": {
+        "measurement": [
+{#          "drop_in",#}
+{#          "drop_out",#}
+{#          "err_in",#}
+{#          "err_out",#}
+{#          "packets_sent",#}
+{#          "packets_recv",#}
+          "bytes_sent",
+          "bytes_recv"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "netstat": {
+        "measurement": [
+{#          "tcp_close",#}
+{#          "tcp_close_wait",#}
+{#          "tcp_closing",#}
+{#          "tcp_established",#}
+{#          "tcp_fin_wait1",#}
+{#          "tcp_fin_wait2",#}
+{#          "tcp_last_ack",#}
+{#          "tcp_listen",#}
+{#          "tcp_none",#}
+{#          "tcp_syn_sent",#}
+{#          "tcp_syn_recv",#}
+{#          "udp_socket",#}
+          "tcp_time_wait"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "processes": {
+        "measurement": [
+{#          "idle",#}
+{#          "paging",#}
+{#          "running",#}
+{#          "sleeping",#}
+{#          "stopped",#}
+{#          "total",#}
+{#          "total_threads",#}
+{#          "wait",#}
+{#          "blocked",#}
+{#          "dead",#}
+          "zombies"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "swap": {
+        "measurement": [
+{#          "free",#}
+{#          "used",#}
+          "used_percent"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "disk_io": {
+        "measurement": [
+{#          "total",#}
+{#          "used",#}
+{#          "reads",#}
+{#          "writes",#}
+{#          "read_time",#}
+{#          "write_time",#}
+{#          "iops_in_progress",#}
+          "free"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300
+      },
+      "disk": {
+        "measurement": [
+{#          "free",#}
+{#          "total",#}
+{#          "inodes_used",#}
+{#          "inodes_total",#}
+{#          "used",#}
+          "used_percent",
+          "inodes_free"
+        ],
+        "resources": ["*"],
+        "metrics_collection_interval": 300,
+        "ignore_file_system_types": ["sysfs", "devtmpfs", "squashfs", "tmpfs", "overlay", "vfat"]
+      }
+    },
+    "aggregation_dimensions": [
+      ["InstanceId"],
+      ["InstanceType"],
+      ["InstanceId", "InstanceType"]
+    ],
+    "append_dimensions": {
+      "ImageId": "${aws:ImageId}",
+      "InstanceId": "${aws:InstanceId}",
+      "InstanceType": "${aws:InstanceType}",
+      "AutoScalingGroupName": "${aws:AutoScalingGroupName}"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+- name: deploy a service to nomad
+  hosts: all
+
+  tasks:
+    - amazon.aws.ec2_metadata_facts:
+      register: meta
+
+    - debug:
+        var: meta
+
+    # Tags need metadata access for the instance set in launch template
+    - set_fact:
+        env: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Environment }}'
+
+    # REPO is set as extra vars by deploy.sh
+    - set_fact:
+        role: '{{ REPO }}'
+
+    # GIT_REF is set as extra vars by deploy.sh
+    - set_fact:
+        APPLICATION_DEPLOY_REF: '{{ GIT_REF }}'
+      when: role == 'backend'
+
+    - set_fact:
+        ML_DEPLOY_REF: '{{ GIT_REF }}'
+      when: role == 'ml'
+
+    - name: include inventory variables
+      include_vars:
+        file: '../../inventories/{{ env }}/group_vars/all/default.yml'
+
+    - name: ensure nomad jobs directory
+      file:
+        path: /etc/nomad.d/jobs
+        state: directory
+      become: true
+
+    - name: template nomad job for deployment
+      template:
+        src: '../base/templates/nomad/jobs/{{ role }}.nomad.j2'
+        dest: '/etc/nomad.d/jobs/{{ role }}.nomad'
+      become: true
+
+    - name: run nomad job
+      command: nomad run /etc/nomad.d/jobs/{{ role }}.nomad
+      environment:
+        NOMAD_ADDR: https://localhost:4646
+        NOMAD_CACERT: /etc/nomad.d/{{ ENVIRONMENT }}-ca.pem
+        NOMAD_CLIENT_CERT: /etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
+        NOMAD_CLIENT_KEY: /etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
+
+    - name: create job
+      community.general.nomad_job:
+        content: "{{ lookup('ansible.builtin.template','../base/templates/nomad/jobs/{{ role }}.nomad.j2') }}"
+        state: present
+        host: localhost
+        client_cert: /etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
+        client_key: /etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
+        validate_certs: false
+        # force_start: true

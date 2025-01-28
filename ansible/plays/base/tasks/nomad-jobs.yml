@@ -1,0 +1,15 @@
+---
+- name: ensure nomad jobs directory
+  ansible.builtin.file:
+    path: /etc/nomad.d/jobs
+    state: directory
+  become: true
+
+- name: template nomad jobs
+  ansible.builtin.template:
+    src: './templates/nomad/jobs/{{ item }}.nomad.j2'
+    dest: '/etc/nomad.d/jobs/{{ item }}.nomad'
+  become: true
+  with_items:
+    - traefik
+    # - eliza

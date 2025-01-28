@@ -1,0 +1,58 @@
+---
+- name: add hashicorp apt key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+  become: true
+
+- name: add hashicorp apt repo
+  ansible.builtin.apt_repository:
+    repo: deb https://apt.releases.hashicorp.com focal main
+    state: present
+  become: true
+
+- name: install consul requirements
+  ansible.builtin.apt:
+    name: '{{ item }}'
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+  with_items:
+    - consul
+    - consul-template
+    - nomad
+    - vault
+
+- name: pip install python-nomad
+  ansible.builtin.pip:
+    name: python-nomad
+    state: present
+  become: true
+
+- name: ensure consul starts after cloud-init is done configuring hostname
+  ansible.builtin.lineinfile:
+    path: /lib/systemd/system/consul.service
+    regexp: '^After='
+    line: 'After=network-online.target cloud-init.service'
+    backrefs: yes
+  become: true
+
+- name: ensure nomad starts after consul
+  ansible.builtin.lineinfile:
+    path: /lib/systemd/system/nomad.service
+    regexp: '^After='
+    line: 'After=network-online.target consul.service'
+    backrefs: yes
+  become: true
+
+- name: enable consul on systemd, but don't start it
+  ansible.builtin.systemd:
+    name: consul
+    enabled: yes
+  become: true
+
+- name: enable nomad on systemd, but don't start it
+  ansible.builtin.systemd:
+    name: nomad
+    enabled: yes
+  become: true

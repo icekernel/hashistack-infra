@@ -1,0 +1,5 @@
+# Python files
+/venv/
+
+# Ansible files
+/ansible.log

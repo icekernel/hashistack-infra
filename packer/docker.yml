@@ -1,0 +1,15 @@
+---
+- name: add base requirements
+  ansible.builtin.import_playbook: ../ansible/plays/base/base-requirements.yml
+  vars:
+    role: docker
+
+- name: configure ansible-pull
+  ansible.builtin.import_playbook: ../ansible/plays/base/ansible-pull.yml
+
+- name: configure hashistack client
+  ansible.builtin.import_playbook: ../ansible/plays/base/hashistack-client.yml
+
+- name: configure docker role
+  ansible.builtin.import_playbook: ../ansible/plays/role/docker/main.yml
+

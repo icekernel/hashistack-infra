@@ -1,0 +1,15 @@
+datacenter = "{{ CONSUL_DATACENTER }}"
+data_dir = "/opt/nomad"
+
+# if acl is enabled run `nomad acl bootstrap` to get the token
+acl {
+  enabled = false
+}
+
+plugin "docker" {
+  config {
+    auth {
+      config = "/etc/docker-auth.json"
+    }
+  }
+}

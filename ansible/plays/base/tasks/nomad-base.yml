@@ -1,0 +1,14 @@
+---
+- name: copy nomad ca
+  ansible.builtin.copy:
+    dest: '/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem'
+    src: './files/nomad/{{ ENVIRONMENT }}-ca.pem'
+  become: true
+
+- name: template nomad.hcl
+  ansible.builtin.template:
+    src: ./templates/nomad/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+  become: true
+  vars:
+    CONSUL_KEY: "{{ lookup('file', './files/nomad/{{ ENVIRONMENT }}-gossip.key') }}"

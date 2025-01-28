@@ -1,0 +1,15 @@
+#!/bin/sh
+
+. /home/ubuntu/ansible.venv/bin/activate
+
+ANSIBLE_CONFIG=/home/ubuntu/ansible_pull_repo/ansible/ansible-pull.cfg \
+  ansible-pull  \
+  --clean \
+  --purge \
+  --url {{ ansible_pull_repo }} \
+  --checkout {{ ENVIRONMENT }} \
+  --directory /home/ubuntu/ansible_pull_repo \
+  --connection local \
+  --accept-host-key \
+  --private-key /home/ubuntu/.ssh/id_rsa \
+  ansible/plays/pull/pull-role.yml

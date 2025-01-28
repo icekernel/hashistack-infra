@@ -1,0 +1,9 @@
+NOMAD_ADDR=https://localhost:4646
+NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem
+NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
+NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
+
+export NOMAD_ADDR
+export NOMAD_CACERT
+export NOMAD_CLIENT_CERT
+export NOMAD_CLIENT_KEY

@@ -1,0 +1,12 @@
+- name: prep instance for eliza deploys
+  hosts: eliza
+
+  vars:
+    role: eliza
+
+  tasks:
+    - debug:
+        var: role
+    - import_tasks: ./tasks/nomad-network.yml
+
+    - import_tasks: ./tasks/setup-eliza.yml

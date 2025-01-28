@@ -1,0 +1,28 @@
+- name: execute a playbook based on instance role
+  hosts: all
+
+  tasks:
+    - amazon.aws.ec2_metadata_facts:
+      register: meta
+
+    # this needs metadata access for the instance set in launch template!!
+    - set_fact:
+        role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
+
+    - debug:
+        var: meta
+
+    # 1 - always run
+
+    - import_tasks: ./tasks/user-accounts.yml
+
+    # 2 - run based on instance role
+
+    - import_tasks: ./tasks/pull-eliza.yml
+      when: role == 'eliza'
+
+    - import_tasks: ./tasks/pull-bastion.yml
+      when: role == 'bastion'
+
+    #- import_tasks: ./tasks/pull-nomad.yml
+    #  when: role == 'bastion'

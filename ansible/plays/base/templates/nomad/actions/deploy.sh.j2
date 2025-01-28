@@ -1,0 +1,21 @@
+#!/bin/sh
+
+. /home/ubuntu/ansible.venv/bin/activate
+
+ANSIBLE_CONFIG=/tmp/ansible_deploy_repo/ansible/ansible-pull.cfg \
+  ansible-pull  \
+  --clean \
+  --purge \
+  --url git@github.com:Use-Prism/eliza-infra.git \
+  --checkout {{ ENVIRONMENT}} \
+  --directory /tmp/ansible_deploy_repo \
+  --connection local \
+  --accept-host-key \
+  --private-key /home/ubuntu/.ssh/id_rsa \
+  -e ENV=$1 \
+  -e REPO=$2 \
+  -e GIT_REF=$3 \
+{# currently this is broken
+  -e @/tmp/ansible_deploy_repo/ansible/inventories/$1/group_vars/all/default.yml \
+#}
+  ansible/plays/push/deploy-to-nomad.yml

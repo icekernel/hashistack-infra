@@ -1,0 +1,40 @@
+---
+- name: Configure host for ansible-pull
+  hosts: all
+
+  vars:
+    ansible_pull_repo: git@github.com:Use-Prism/eliza-infra.git
+
+  tasks:
+    - name: Install GitHub infra repo private ssh key
+      ansible.builtin.copy:
+        src: prism-eliza-20250127.pem
+        dest: /home/ubuntu/.ssh/id_rsa
+        mode: 0600
+
+    - name: Ensure python3-virtualenv installed
+      ansible.builtin.apt:
+        name: python3-virtualenv
+        state: present
+      become: true
+
+    - name: Create venv
+      ansible.builtin.pip:
+        name: '{{ item }}'
+        virtualenv: /home/ubuntu/ansible.venv
+      with_items:
+        - ansible
+        - boto3
+
+    - name: Template ansible-pull.sh
+      ansible.builtin.template:
+        src: ./templates/ansible-pull.sh.j2
+        dest: /home/ubuntu/ansible-pull.sh
+        mode: 0755
+
+    - name: Set cron for ansible pull
+      ansible.builtin.cron:
+        name: ansible pull
+        minute: '{{ 60 | random(seed=inventory_hostname) }}'
+        job: '/home/ubuntu/ansible-pull.sh 2>&1 | systemd-cat -t ansible-pull -p info'
+        user: ubuntu

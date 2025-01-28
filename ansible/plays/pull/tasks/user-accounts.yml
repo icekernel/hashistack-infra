@@ -1,0 +1,23 @@
+---
+- name: add user account for {{ item.username }}
+  ansible.builtin.user:
+    name: '{{ item.username }}'
+    shell: /bin/bash
+  become: true
+  with_items: '{{ user_accounts }}'
+
+- name: add ssh key for user account {{ item.username }}
+  ansible.posix.authorized_key:
+    user: '{{ item.username }}'
+    key: '{{ item.ssh_key }}'
+  become: true
+  with_items: '{{ user_accounts }}'
+
+- name: add user to sudoers for {{ item.username }}
+  community.general.sudoers:
+    name: '{{ item.username }}'
+    user: '{{ item.username }}'
+    commands: ALL
+    nopassword: true
+  become: true
+  with_items: '{{ user_accounts }}'

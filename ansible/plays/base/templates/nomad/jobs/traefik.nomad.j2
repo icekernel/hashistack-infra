@@ -1,0 +1,73 @@
+job "traefik" {
+  datacenters = ["{{ CONSUL_DATACENTER }}"]
+  type        = "system"
+
+  # only one Traefik instance will be restarted at a time, with 1 minute delay
+  # between each such action and automatic rollback to the previous version if
+  # the new one doesn't pass the health check
+  update {
+    max_parallel = 1
+    stagger      = "1m"
+    auto_revert  = true
+  }
+
+  group "traefik" {
+    volume "ca-pem" {
+      type      = "host"
+      source    = "ca-pem"
+      read_only = true
+    }
+
+    network {
+      port "http" {
+        static = 80
+      }
+
+      port "admin" {
+        static = 8080
+      }
+    }
+
+    task "server" {
+      driver = "docker"
+
+      volume_mount {
+        volume      = "ca-pem"
+        destination = "/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem"
+        propagation_mode = "private"
+      }
+
+      config {
+        image = "traefik:2.9"
+        ports = ["admin", "http"]
+
+        // providers.nomad.endpoint.address: FQDN of nomad.service.consul is
+        // provided by consul DNS
+
+        # Traefik will continue serving new requests for 15s while failing its
+        # healthcheck, giving time to downstream load balancers to take it out
+        # of their pool and will *then* wait for 10s for existing requests to
+        # finish before shutting down, before Nomad forcefully kills it (30s
+        # default, see task kill_timeout) after initiating
+        args = [
+          "--api.dashboard=true",
+          "--api.insecure=true",
+          "--accesslog=true",
+          "--ping=true",
+          "--ping.entryPoint=web",
+        #  "--metrics=true",
+        #  "--metrics.prometheus=true",
+        #  "--metrics.prometheus.entryPoint=web",
+          "--serverstransport.insecureskipverify=true",
+          "--entrypoints.web.address=:${NOMAD_PORT_http}",
+          "--entrypoints.web.transport.lifeCycle.requestAcceptGraceTimeout=15s",
+          "--entrypoints.web.transport.lifeCycle.graceTimeOut=10s",
+          "--entrypoints.traefik.address=:${NOMAD_PORT_admin}",
+          "--providers.nomad=true",
+          "--providers.nomad.endpoint.tls.ca=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem",
+          "--providers.nomad.endpoint.address=https://nomad.service.consul:4646",
+        ]
+      }
+    }
+  }
+}

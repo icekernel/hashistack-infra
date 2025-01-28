@@ -1,0 +1,26 @@
+---
+- debug:
+    var: service
+
+- name: install systemd unit
+  ansible.builtin.template:
+    src: '../templates/nomad-job.service.j2'
+    dest: '/lib/systemd/system/{{ service.service_name }}.service'
+    owner: root
+    group: root
+    mode: 0640
+  become: true
+
+- name: enable service on systemd
+  ansible.builtin.service:
+    name: '{{ service.service_name }}'
+    enabled: yes
+    daemon_reload: yes
+  become: true
+
+- name: start service on systemd
+  ansible.builtin.service:
+    name: '{{ service.service_name }}'
+    state: restarted
+  become: true
+  tags: packer-skip

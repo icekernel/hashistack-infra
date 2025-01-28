@@ -1,0 +1,31 @@
+job "env-reader" {
+
+  datacenters = ["{{ CONSUL_DATACENTER }}"]
+
+  group "service" {
+    count = 1
+    network {
+      port "http" { }
+    }
+
+    service {
+      name = "env-reader"
+      provider = "nomad"
+      port = "http"
+      address = "${attr.unique.platform.aws.public_ipv4}"
+    }
+
+    task "env-reader" {
+      driver = "docker"
+      config {
+        image = "mnomitch/env-reader"
+        ports = ["http"]
+      }
+      env {
+        PORT = "${NOMAD_PORT_http}"
+        VAR1 = "hello,"
+        VAR2 = "world!"
+      }
+    }
+  }
+}

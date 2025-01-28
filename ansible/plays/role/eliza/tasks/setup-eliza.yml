@@ -1,0 +1,3 @@
+- name: Ansible Role debug role for eliza
+  ansible.builtin.debug:
+    msg: 'eliza: {{ role }}'

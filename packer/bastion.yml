@@ -1,0 +1,14 @@
+---
+- name: add base requirements
+  ansible.builtin.import_playbook: ../ansible/plays/base/base-requirements.yml
+  vars:
+    role: bastion
+
+- name: configure ansible-pull
+  ansible.builtin.import_playbook: ../ansible/plays/base/ansible-pull.yml
+
+- name: configure hashistack server
+  ansible.builtin.import_playbook: ../ansible/plays/base/hashistack-server.yml
+
+- name: configure bastion role
+  ansible.builtin.import_playbook: ../ansible/plays/role/bastion/main.yml

@@ -1,0 +1,33 @@
+client {
+  enabled = true
+  host_volume "ca-pem" {
+    path = "/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem"
+    read_only = true
+  }
+}
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem"
+  cert_file = "/etc/nomad.d/{{ ENVIRONMENT }}-client.pem"
+  key_file = "/etc/nomad.d/{{ ENVIRONMENT }}-client-key.pem"
+
+  verify_server_hostname = true
+  verify_https_client = false
+}
+consul {
+  address = "127.0.0.1:8501"
+  ssl = true
+
+#  server_service_name = "nomad"
+#  client_service_name = "nomad-client"
+
+  auto_advertise      = true
+  server_auto_join    = true
+  client_auto_join    = true
+
+  ca_file = "/etc/consul.d/{{ ENVIRONMENT}}-consul-agent-ca.pem"
+  cert_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem"
+  key_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem"
+}

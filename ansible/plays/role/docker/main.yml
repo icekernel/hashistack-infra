@@ -1,0 +1,16 @@
+- name: prep instance for docker deploys
+  hosts: docker
+
+  vars:
+    role: docker
+
+  tasks:
+    - debug:
+        var: role
+    - import_tasks: ./tasks/nomad-network.yml
+
+    #- import_tasks: ./tasks/setup-service.yml
+    #  loop:
+    #    - service_name: '{{ role }}'
+    #  loop_control:
+    #    loop_var: service

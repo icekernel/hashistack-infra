@@ -1,0 +1,305 @@
+job "backend" {
+
+  datacenters = ["{{ CONSUL_DATACENTER }}"]
+
+  group "api" {
+
+    network {
+      port "analytics" { to = "2008" }
+      port "location" { to = "2002" }
+      port "notification" { to = "2009" }
+      port "order" { to = "2005" }
+      port "pricing" { to = "2003" }
+      port "reviewrating" { to = "2007" }
+      port "tracking" { to = "2004" }
+      port "user" { to = "2001" }
+      port "payment" { to = "2089" }
+    }
+
+    count = 1
+
+    update {
+      max_parallel = 1
+      canary = 1
+      min_healthy_time = "30s"
+      healthy_deadline = "5m"
+      auto_revert = true
+      auto_promote = true
+    }
+
+    task "analytics" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_analytics"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["analytics"]
+      }
+      service {
+        name     = "analytics"
+        provider = "nomad"
+        port     = "analytics"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.analytics.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/analytics`)",
+          "traefik.http.routers.analytics.middlewares=analytics-stripprefix",
+          "traefik.http.middlewares.analytics-stripprefix.stripprefix.prefixes=/analytics"
+        ]
+      }
+    }
+
+    task "location" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_location"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["location"]
+      }
+      service {
+        name     = "location"
+        provider = "nomad"
+        port     = "location"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.location.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/location`)",
+          "traefik.http.routers.location.middlewares=location-stripprefix",
+          "traefik.http.middlewares.location-stripprefix.stripprefix.prefixes=/location"
+        ]
+      }
+    }
+
+    task "notification" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_notification"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["notification"]
+      }
+      service {
+        name     = "notification"
+        provider = "nomad"
+        port     = "notification"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.notification.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/notification`)",
+          "traefik.http.routers.notification.middlewares=notification-stripprefix",
+          "traefik.http.middlewares.notification-stripprefix.stripprefix.prefixes=/notification"
+        ]
+      }
+    }
+
+    task "order" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 800
+        memory_max = 1024
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_order"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["order"]
+      }
+      service {
+        name     = "order"
+        provider = "nomad"
+        port     = "order"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.order.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/order`)",
+          "traefik.http.routers.order.middlewares=order-stripprefix",
+          "traefik.http.middlewares.order-stripprefix.stripprefix.prefixes=/order"
+        ]
+      }
+    }
+
+    task "pricing" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_pricing"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["pricing"]
+      }
+      service {
+        name     = "pricing"
+        provider = "nomad"
+        port     = "pricing"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.pricing.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/pricing`)",
+          "traefik.http.routers.pricing.middlewares=pricing-stripprefix",
+          "traefik.http.middlewares.pricing-stripprefix.stripprefix.prefixes=/pricing"
+        ]
+      }
+    }
+
+    task "reviewrating" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_reviewrating"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["reviewrating"]
+      }
+      service {
+        name     = "reviewrating"
+        provider = "nomad"
+        port     = "reviewrating"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.rating.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/rating`)",
+          "traefik.http.routers.rating.middlewares=rating-stripprefix",
+          "traefik.http.middlewares.rating-stripprefix.stripprefix.prefixes=/rating",
+          "traefik.http.routers.reviewrating.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/reviewrating`)",
+          "traefik.http.routers.reviewrating.middlewares=reviewrating-stripprefix",
+          "traefik.http.middlewares.reviewrating-stripprefix.stripprefix.prefixes=/reviewrating"
+        ]
+      }
+    }
+
+    task "tracking" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_tracking"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["tracking"]
+      }
+      service {
+        name     = "tracking"
+        provider = "nomad"
+        port     = "tracking"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.tracking.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/tracking`)",
+          "traefik.http.routers.tracking.middlewares=tracking-stripprefix",
+          "traefik.http.middlewares.tracking-stripprefix.stripprefix.prefixes=/tracking"
+        ]
+      }
+    }
+
+    task "user" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/backend_user"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["user"]
+      }
+      service {
+        name     = "user"
+        provider = "nomad"
+        port     = "user"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.user.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/user`)",
+          "traefik.http.routers.user.middlewares=user-stripprefix",
+          "traefik.http.middlewares.user-stripprefix.stripprefix.prefixes=/user"
+        ]
+      }
+    }
+
+    task "payment" {
+      driver = "docker"
+      resources {
+        cpu = 100
+        memory = 450
+        memory_max = 550
+      }
+      env {
+        NODE_ENV = "{{ NOMAD_ENV }}"
+      }
+      config {
+        image    = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-backend:{{ GIT_REF }}"
+        work_dir = "/srv/prism1/backend/be_payment"
+        command  = "npm"
+        args     = ["run", "start" ]
+        ports    = ["payment"]
+      }
+      service {
+        name     = "payment"
+        provider = "nomad"
+        port     = "payment"
+        tags     = [
+          "traefik.enable=true",
+          "traefik.http.routers.payment.rule=(Host(`app.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-backend.prism1.click`)) && PathPrefix(`/payment`)",
+          "traefik.http.routers.payment.middlewares=payment-stripprefix",
+          "traefik.http.middlewares.payment-stripprefix.stripprefix.prefixes=/payment"
+        ]
+      }
+    }
+
+  }
+
+}
