@@ -18,12 +18,8 @@
 
     # GIT_REF is set as extra vars by deploy.sh
     - set_fact:
-        APPLICATION_DEPLOY_REF: '{{ GIT_REF }}'
-      when: role == 'backend'
-
-    - set_fact:
-        ML_DEPLOY_REF: '{{ GIT_REF }}'
-      when: role == 'ml'
+        ELIZA_DEPLOY_REF: '{{ GIT_REF }}'
+      when: role == 'eliza'
 
     - name: include inventory variables
       include_vars:

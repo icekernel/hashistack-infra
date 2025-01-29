@@ -1,0 +1,17 @@
+---
+- name: Install GitHub repo ssh key for read access
+  ansible.builtin.copy:
+    src: eliza-checkout-20250129.pem
+    dest: '{{ key_file }}'
+    mode: 0600
+
+- name: Clone service's git repository
+  ansible.builtin.git:
+    repo: '{{ git_repo }}'
+    dest: '{{ checkout_dest }}'
+    separate_git_dir: '{{ git_repo_dest }}'
+    version: '{{ ELIZA_DEPLOY_REF }}'
+    depth: 1
+    accept_hostkey: true
+    key_file: '{{ key_file }}'
+  become: true

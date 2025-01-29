@@ -1,7 +1,7 @@
 import requests
 import logging
 from cloudinit import subp
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.config import Config
 from cloudinit.cloud import Cloud
 from cloudinit.settings import PER_INSTANCE
@@ -46,8 +46,6 @@ meta: MetaSchema = {
     "activate_by_schema_keys": [],
 }
 
-__doc__ = get_meta_doc(meta)
-
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
@@ -55,6 +53,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         ipv4 = requests.get("http://169.254.169.254/latest/meta-data/local-ipv4").text
     except requests.RequestException as e:
         LOG.error("Failed to fetch instance's local IPv4 address: %s", str(e))
+        return
 
     environ = load_environment_variables()
     environment = environ.get("ENVIRONMENT", "unknown")

@@ -1,0 +1,17 @@
+[Unit]
+Description={{ owner }}-{{ service.service_name }} node service
+Documentation=https://github.com/PickupsMobi/backend
+After=network.target
+
+[Service]
+#Environment=PORT=3000
+Environment=NODE_ENV={{ ENVIRONMENT }}
+Type=simple
+User={{ owner }}-{{ service.service_name }}
+WorkingDirectory=/srv/{{ owner }}/{{ role }}/{{ service.working_directory }}
+ExecStart=npm run start:prod
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

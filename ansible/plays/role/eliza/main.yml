@@ -10,3 +10,54 @@
     - import_tasks: ./tasks/nomad-network.yml
 
     - import_tasks: ./tasks/setup-eliza.yml
+
+- name: Install service based on instance role
+  hosts: eliza
+
+  vars:
+    role: eliza
+
+    git_repo: 'git@github.com:Use-Prism/{{ role }}.git'
+    srv_base_dir: /srv/{{ role }}
+    git_repo_dest: '{{ srv_base_dir }}/{{ role }}.git'
+    checkout_dest: '{{ srv_base_dir }}/{{ role }}'
+    owner: '{{ role }}'
+    group: '{{ role }}'
+    key_file: /home/ubuntu/.ssh/{{ role }}-checkout.pem
+
+  tasks:
+    - name: Debug the current role
+      ansible.builtin.debug:
+        var: role
+
+    - name: Clone service's git repository
+      ansible.builtin.import_tasks: ./tasks/clone-repository.yml
+
+    # - name: Setup the service
+    #   # should switch to import ? double check and test
+    #   # ref: https://docs.ansible.com/ansible/latest/user_guide/playbooks_reuse_includes.html
+    #   ansible.builtin.include_tasks: ./tasks/setup-service.yml
+    #   loop:
+    #     - service_name: analytics
+    #       working_directory: backend_analytics
+    #     - service_name: location
+    #       working_directory: backend_location
+    #     - service_name: notification
+    #       working_directory: backend_notification
+    #     - service_name: order
+    #       working_directory: backend_order
+    #     - service_name: pricing
+    #       working_directory: backend_pricing
+    #     - service_name: reviewrating
+    #       working_directory: backend_reviewrating
+    #     - service_name: tracking
+    #       working_directory: backend_tracking
+    #     - service_name: user
+    #       working_directory: backend_user
+    #     - service_name: payment
+    #       working_directory: be_payment
+    #   loop_control:
+    #     loop_var: service
+
+    # - name: Setup nginx
+    #   ansible.builtin.import_tasks: ./tasks/setup-nginx.yml
