@@ -1,0 +1,29 @@
+- name: Install nvm
+  ansible.builtin.shell:
+    cmd: |
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  become: true
+  become_user: '{{ role }}'
+  become_flags: '-i'
+  args:
+    creates: /home/{{ role }}/.nvm
+
+- name: Install node v23.3.0 with nvm
+  ansible.builtin.shell:
+    cmd: source /home/{{ role }}/.nvm/nvm.sh && nvm install v23.3.0
+  become: true
+  become_user: '{{ role }}'
+  args:
+    creates: /home/{{ role }}/.nvm/versions/node/v23.3.0
+    executable: /bin/bash
+    chdir: /home/{{ role }}
+
+- name: Install pnpm
+  ansible.builtin.shell:
+    cmd: |
+      . /home/{{ role }}/.nvm/nvm.sh && npm install -g pnpm
+  become: true
+  become_user: '{{ role }}'
+  args:
+    executable: /bin/bash
+    creates: /home/{{ role }}/.nvm/versions/node/v23.3.0/bin/pnpm

@@ -4,6 +4,17 @@
     src: eliza-checkout-20250129.pem
     dest: '{{ key_file }}'
     mode: 0600
+  become: true
+  become_user: '{{ owner }}'
+
+- name: Ensure the directory exists
+  ansible.builtin.file:
+    path: '{{ checkout_dest }}'
+    state: directory
+    owner: '{{ owner }}'
+    group: '{{ group }}'
+    mode: 0755
+  become: true
 
 - name: Clone service's git repository
   ansible.builtin.git:
@@ -15,3 +26,4 @@
     accept_hostkey: true
     key_file: '{{ key_file }}'
   become: true
+  become_user: '{{ owner }}'

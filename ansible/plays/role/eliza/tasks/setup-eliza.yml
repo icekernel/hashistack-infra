@@ -1,3 +1,38 @@
-- name: Ansible Role debug role for eliza
-  ansible.builtin.debug:
-    msg: 'eliza: {{ role }}'
+# TODO: Make this build on some untrusted place.
+# TODO: Audit this code. There seems to be a root level install on eliza's plugin-node
+- name: pnpm install - THIS TAKES A LONG TIME
+  ansible.builtin.shell:
+    cmd: |
+      . /home/{{ role }}/.nvm/nvm.sh && cd /srv/{{ role }}/{{ role }} && pnpm install
+  become: true
+  # become_user: '{{ role }}'
+  args:
+    executable: /bin/bash
+    # creates: /srv/{{ role }}/{{ role }}/node_modules
+
+- name: pnpm build - ALSO TAKES A LONG TIME
+  ansible.builtin.shell:
+    cmd: |
+      . /home/{{ role }}/.nvm/nvm.sh && cd /srv/{{ role }}/{{ role }} && pnpm build
+  become: true
+  # become_user: '{{ role }}'
+  args:
+    executable: /bin/bash
+    # creates: /srv/{{ role }}/{{ role }}/dist
+
+- name: place tmux launch script
+  ansible.builtin.copy:
+    dest: /home/{{ role }}/launch-{{ role }}.sh
+    content: |
+      #!/bin/bash
+      SESSION_NAME="{{ role }}"
+
+      if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+        :
+      else
+        echo "Starting $SESSION_NAME on $(date)";
+        tmux new-session -d -s "$SESSION_NAME" 'cd /srv/{{ role }}/{{ role }} && . /home/{{ role }}/.nvm/nvm.sh && pnpm run start'
+      fi
+    mode: 0755
+    owner: '{{ role }}'
+  become: true

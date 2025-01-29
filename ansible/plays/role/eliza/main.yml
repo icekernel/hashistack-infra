@@ -7,9 +7,7 @@
   tasks:
     - debug:
         var: role
-    - import_tasks: ./tasks/nomad-network.yml
-
-    - import_tasks: ./tasks/setup-eliza.yml
+    # - import_tasks: ./tasks/nomad-network.yml
 
 - name: Install service based on instance role
   hosts: eliza
@@ -23,15 +21,23 @@
     checkout_dest: '{{ srv_base_dir }}/{{ role }}'
     owner: '{{ role }}'
     group: '{{ role }}'
-    key_file: /home/ubuntu/.ssh/{{ role }}-checkout.pem
+    key_file: /home/{{ role }}/.ssh/{{ role }}-checkout.pem
 
   tasks:
     - name: Debug the current role
       ansible.builtin.debug:
         var: role
 
+    - ansible.builtin.import_tasks:
+        file: ./tasks/hosting-user.yml
+
+    - ansible.builtin.import_tasks:
+        file: ./tasks/install-node.yml
+
     - name: Clone service's git repository
       ansible.builtin.import_tasks: ./tasks/clone-repository.yml
+
+    - import_tasks: ./tasks/setup-eliza.yml
 
     # - name: Setup the service
     #   # should switch to import ? double check and test

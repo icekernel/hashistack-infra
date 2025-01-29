@@ -12,14 +12,14 @@ resource "aws_security_group" "eliza" {
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
-    security_groups = [var.bastion_sg]
+    cidr_blocks     = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port       = 5173
     to_port         = 5173
     protocol        = "tcp"
-    security_groups = [var.bastion_sg]
+    cidr_blocks     = ["0.0.0.0/0"]
   }
 
   ingress {

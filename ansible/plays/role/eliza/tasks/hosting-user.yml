@@ -1,0 +1,11 @@
+- name: Ensure hosting user
+  ansible.builtin.user:
+    name: '{{ role }}'
+    system: true
+  become: true
+
+- name: Set user's shell to bash
+  ansible.builtin.user:
+    name: '{{ role }}'
+    shell: /bin/bash
+  become: true
