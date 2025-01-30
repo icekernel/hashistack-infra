@@ -2,3 +2,5 @@
 user_accounts:
   - username: conrado
     ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGoethuGRssGr92X4s7tXX7i2InHGPqu2pLMT+btpFzU
+  - username: purpleethereum
+    ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICZl/JNWEhY9c5zv4PLynEMRRA+IkuirN3K1ZCj6NoBb
