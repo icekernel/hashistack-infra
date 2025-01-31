@@ -45,6 +45,22 @@ module "eliza" {
   environment     = var.WORKSPACE
 }
 
+module "nginx" {
+  source          = "../modules/nginx"
+  vpc_id          = module.vpc.vpc_id
+  ssh_key_name    = module.security.ssh_key_name
+  public_subnets  = module.vpc.public_subnets
+  private_subnets = module.vpc.private_subnets
+  route53_zone_id = module.globals.route53_zone_id
+  consul_sg       = module.security.consul_sg
+  nomad_sg        = module.security.nomad_sg
+  bastion_sg      = module.bastion.bastion_sg
+  iam_profile     = module.security.iam_instance_profile_arn_nginx
+  instance_type   = module.environment.nginx_instance_type
+  domain          = module.globals.domain
+  environment     = var.WORKSPACE
+}
+
 # module "docker" {
 #   source          = "../modules/docker"
 #   vpc_id          = module.vpc.vpc_id

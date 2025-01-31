@@ -8,10 +8,17 @@ locals {
     global  = null
   }
   eliza_instance_type = {
-    test1   = "t2.large"
-    test2   = "t2.large"
-    prod1   = "t2.large"
-    prod2   = "t2.large"
+    test1   = "t3.small"
+    test2   = "t3.small"
+    prod1   = "t3.small"
+    prod2   = "t3.small"
+    global  = null
+  }
+  nginx_instance_type = {
+    test1   = "t3.small"
+    test2   = "t3.small"
+    prod1   = "t3.small"
+    prod2   = "t3.small"
     global  = null
   }
   docker_instance_type = {

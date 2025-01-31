@@ -4,6 +4,15 @@
     system: true
   become: true
 
+- name: Create ssh directory
+  ansible.builtin.file:
+    path: '/home/{{ role }}/.ssh'
+    state: directory
+    owner: '{{ role }}'
+    group: '{{ role }}'
+    mode: 0700
+  become: true
+
 - name: Set user's shell to bash
   ansible.builtin.user:
     name: '{{ role }}'

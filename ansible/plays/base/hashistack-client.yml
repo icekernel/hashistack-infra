@@ -1,16 +1,16 @@
 ---
 - name: install hashistack packages
-  hosts: docker, eliza
+  hosts: docker, eliza, nginx
   tasks:
     - import_tasks: ./tasks/hashistack-packages.yml
 
 - name: consul base configuration
-  hosts: docker, eliza
+  hosts: docker, eliza, nginx
   tasks:
     - import_tasks: ./tasks/consul-base.yml
 
 - name: consul client configuration
-  hosts: docker, eliza
+  hosts: docker, eliza, nginx
 
   tasks:
     - name: copy consul client cert
@@ -32,12 +32,12 @@
       become: true
 
 - name: nomad base configuration
-  hosts: docker, eliza
+  hosts: docker, eliza, nginx
   tasks:
     - import_tasks: ./tasks/nomad-base.yml
 
 - name: nomad client configuration
-  hosts: docker, eliza
+  hosts: docker, eliza, nginx
   tasks:
     - name: install nomad docker driver dependencies
       ansible.builtin.apt:

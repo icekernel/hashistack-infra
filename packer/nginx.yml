@@ -1,0 +1,14 @@
+---
+- name: add base requirements
+  ansible.builtin.import_playbook: ../ansible/plays/base/base-requirements.yml
+  vars:
+    role: nginx
+
+- name: configure ansible-pull
+  ansible.builtin.import_playbook: ../ansible/plays/base/ansible-pull.yml
+
+- name: configure hashistack client
+  ansible.builtin.import_playbook: ../ansible/plays/base/hashistack-client.yml
+
+- name: configure nginx role
+  ansible.builtin.import_playbook: ../ansible/plays/role/nginx/main.yml

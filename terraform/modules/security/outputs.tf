@@ -22,3 +22,8 @@ output "iam_instance_profile_arn_eliza" {
   description = "IAM Instance for eliza"
   value       = aws_iam_instance_profile.eliza.arn
 }
+
+output "iam_instance_profile_arn_nginx" {
+  description = "IAM Instance for nginx"
+  value       = aws_iam_instance_profile.nginx.arn
+}

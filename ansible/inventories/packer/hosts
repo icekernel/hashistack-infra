@@ -1,0 +1,7 @@
+[tag_Build_packer]
+
+[packer:children]
+tag_Build_packer
+
+[aws_ec2:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'

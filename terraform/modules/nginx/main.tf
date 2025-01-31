@@ -1,25 +1,18 @@
 locals {
-  role          = "eliza"
-  instance_name = "${var.environment}-eliza"
+  role          = "nginx"
+  instance_name = "${var.environment}-nginx"
 }
 
-resource "aws_security_group" "eliza" {
+resource "aws_security_group" "nginx" {
   name        = local.instance_name
-  description = "Allow inbound eliza traffic and mgmt ssh"
+  description = "Allow inbound nginx traffic and mgmt ssh"
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port       = 3000
-    to_port         = 3000
+    from_port       = 8080
+    to_port         = 8080
     protocol        = "tcp"
-    cidr_blocks     = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port       = 5173
-    to_port         = 5173
-    protocol        = "tcp"
-    cidr_blocks     = ["0.0.0.0/0"]
+    security_groups = [var.bastion_sg]
   }
 
   ingress {
@@ -56,11 +49,11 @@ resource "aws_security_group" "eliza" {
   }
 
   tags = {
-    "Name" = "${local.instance_name}"
+    "Name" = "${local.instance_name}-80a-443a-22b-0x"
   }
 }
 
-data "template_file" "cloud_config_eliza" {
+data "template_file" "cloud_config_nginx" {
   template = file("${path.root}/../templates/cloud-config.tpl")
   vars = {
     ROLE        = local.role
@@ -95,7 +88,7 @@ module "asg" {
   name = local.instance_name
 
   security_groups = [
-    aws_security_group.eliza.id,
+    aws_security_group.nginx.id,
     var.consul_sg,
     var.nomad_sg,
   ]
@@ -112,17 +105,16 @@ module "asg" {
 
   # Launch template
   launch_template_name        = local.instance_name
-  launch_template_description = "eliza launch template"
+  launch_template_description = "nginx launch template"
   update_default_version      = true
-  # launch_template = aws_launch_template.this.name
 
-  image_id      = data.aws_ami.eliza.id
+  image_id      = data.aws_ami.nginx.id
   instance_type = var.instance_type
   key_name      = var.ssh_key_name
 
   # ebs_optimized = true   # if high disk read/write needs, set true
 
-  user_data = base64encode(data.template_file.cloud_config_eliza.rendered)
+  user_data = base64encode(data.template_file.cloud_config_nginx.rendered)
 
   # IAM role & instance profile
   create_iam_instance_profile = false
@@ -137,7 +129,7 @@ module "asg" {
       device_name = "/dev/sda1"
       ebs = {
         delete_on_termination = true
-        volume_size           = 52
+        volume_size           = 32
       }
     }
   ]
@@ -177,7 +169,7 @@ module "alb" {
   vpc_id  = var.vpc_id
   subnets = var.public_subnets
   security_groups = [
-    aws_security_group.eliza.id,
+    aws_security_group.nginx.id,
   ]
 
   https_listeners = [
@@ -193,10 +185,10 @@ module "alb" {
     {
       name             = local.instance_name
       backend_protocol = "HTTP"
-      backend_port     = 3000
+      backend_port     = 80
       target_type      = "instance"
       health_check = {
-        path                = "/"
+        path                = "/ping" # traefik health check
         interval            = 10
         timeout             = 5
         healthy_threshold   = 2
@@ -216,7 +208,7 @@ module "alb" {
   }
 }
 
-resource "aws_route53_record" "eliza_live" {
+resource "aws_route53_record" "nginx" {
   zone_id = var.route53_zone_id
   name    = local.instance_name
   type    = "A"
@@ -226,40 +218,3 @@ resource "aws_route53_record" "eliza_live" {
     evaluate_target_health = true
   }
 }
-
-resource "aws_route53_record" "eliza_env" {
-  zone_id = var.route53_zone_id
-  name    = "env-${var.environment}-eliza.${var.domain}"
-  type    = "A"
-  alias {
-    name                   = module.alb.lb_dns_name
-    zone_id                = module.alb.lb_zone_id
-    evaluate_target_health = true
-  }
-}
-
-# resource "aws_launch_template" "this" {
-#   name_prefix   = "${local.instance_name}-"
-#   image_id      = data.aws_ami.eliza.id
-#   instance_type = var.instance_type
-#   key_name      = var.ssh_key_name
-#   iam_instance_profile {
-#     name = var.iam_profile
-#   }
-#   vpc_security_group_ids = [
-#     aws_security_group.eliza.id,
-#     var.consul_sg,
-#     var.nomad_sg,
-#   ]
-#   user_data = base64encode(data.template_file.cloud_config_eliza.rendered)
-#   metadata_options {
-#     http_endpoint               = "enabled"
-#     http_put_response_hop_limit = 2
-#     instance_metadata_tags      = "enabled"
-#   }
-#   tags = {
-#     Environment = var.environment
-#     Role        = local.role
-#     Terraform   = "Use-Prism/eliza-infra"
-#   }
-# }

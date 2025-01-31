@@ -16,7 +16,7 @@ resource "aws_iam_role_policy_attachment" "ec2_describe_instances_docker" {
 
 resource "aws_cloudwatch_log_group" "docker" {
   name              = "${var.environment}-docker"
-  retention_in_days = 120
+  retention_in_days = 5
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_agent_docker" {

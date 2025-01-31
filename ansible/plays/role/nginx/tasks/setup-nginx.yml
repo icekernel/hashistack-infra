@@ -15,6 +15,14 @@
     mode: 0644
   become: true
 
+- name: Ensure nginx starts after consul
+  ansible.builtin.lineinfile:
+    path: /lib/systemd/system/nginx.service
+    regexp: '^After='
+    line: 'After=network-online.target consul.service'
+    backrefs: yes
+  become: true
+
 - name: Reload nginx
   ansible.builtin.systemd:
     name: nginx

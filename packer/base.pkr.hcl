@@ -47,7 +47,7 @@ variable "ami_region" {
 }
 
 variable "instance_type" {
-  default = "t2.small"
+  default = "t3.large"
 }
 
 locals {
@@ -59,10 +59,9 @@ source "amazon-ebs" "ubuntu" {
   instance_type = var.instance_type
   region        = "${var.ami_region}"
 
-  temporary_key_pair_type = "ed25519"
-
-  // ssh_keypair_name = "test1-terraform-everything-20220923"
-  // ssh_private_key_file = "../ansible/plays/base/files/terraform-everything-20220923.pem"
+  ssh_keypair_name = "${var.environment}-prism1-eliza-20250127"
+  ssh_private_key_file = "../ansible/plays/base/files/prism-eliza-20250127.pem"
+  # temporary_key_pair_type = "ed25519"
 
   launch_block_device_mappings {
     device_name = "/dev/sda1"
@@ -82,6 +81,16 @@ source "amazon-ebs" "ubuntu" {
   ssh_username = "ubuntu"
 
   tags = {
+      OS_Version = "ubuntu"
+      Release = "${var.ami_tag_os_release}"
+      Base_AMI_Name = "{{ .SourceAMIName }}"
+      Name = "${var.environment}-${var.role}-${local.timestamp}"
+      Role = "${var.role}"
+      Environment = "${var.environment}"
+      Packer = "Use-Prism/eliza-infra"
+  }
+
+  run_tags = {
       OS_Version = "ubuntu"
       Release = "${var.ami_tag_os_release}"
       Base_AMI_Name = "{{ .SourceAMIName }}"
