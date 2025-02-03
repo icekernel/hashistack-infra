@@ -1,11 +1,15 @@
 [tag_Role_bastion]
 [tag_Role_eliza]
+[tag_Role_nginx]
 
 [eliza:children]
 tag_Role_eliza
 
 [bastion:children]
 tag_Role_bastion
+
+[nginx:children]
+tag_Role_nginx
 
 [aws_ec2:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -J prod1-bastion.prism1.click'

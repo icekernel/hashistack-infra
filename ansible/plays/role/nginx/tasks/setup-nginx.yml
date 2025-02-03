@@ -6,14 +6,14 @@
     cache_valid_time: 3600
   become: true
 
-- name: Install nginx proxy config
-  ansible.builtin.template:
-    src: '../templates/nginx-proxy.j2'
-    dest: '/etc/nginx/sites-available/default'
-    owner: root
-    group: root
-    mode: 0644
-  become: true
+# - name: Install nginx proxy config
+#   ansible.builtin.template:
+#     src: '../templates/nginx-proxy.j2'
+#     dest: '/etc/nginx/sites-available/default'
+#     owner: root
+#     group: root
+#     mode: 0644
+#   become: true
 
 - name: Ensure nginx starts after consul
   ansible.builtin.lineinfile:
@@ -21,6 +21,69 @@
     regexp: '^After='
     line: 'After=network-online.target consul.service'
     backrefs: yes
+  become: true
+
+- name: Ensure consul-template directory exists
+  ansible.builtin.file:
+    dest: /etc/consul-template/templates
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  become: true
+
+- name: Configure consul-template
+  ansible.builtin.copy:
+    src: ../files/consul-template-config.hcl
+    dest: /etc/consul-template/config.hcl
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+
+- name: Copy nginx consul-template
+  ansible.builtin.copy:
+    src: ../files/nginx-default.ctmpl
+    dest: /etc/consul-template/templates/nginx-default.ctmpl
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+
+- name: Create systemd unit for consul-template
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/consul-template.service
+    mode: 0644
+    content: |
+      [Unit]
+      Description=consul-template service
+      Requires=network-online.target
+      After=network-online.target
+
+      [Service]
+      ExecStart=/usr/bin/consul-template -kill-signal SIGTERM -reload-signal SIGHUP -config=/etc/consul-template/config.hcl
+      TimeoutStopSec=10
+      KillSignal=SIGTERM
+      SendSIGKILL=yes
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  become: true
+
+- name: Enable and start consul-template
+  ansible.builtin.systemd:
+    name: consul-template
+    daemon_reload: true
+    enabled: true
+    state: started
+  become: true
+
+- name: Start consul-template
+  ansible.builtin.systemd:
+    name: consul-template
+    state: started
+    enabled: true
   become: true
 
 - name: Reload nginx

@@ -19,7 +19,6 @@
     # - include_tasks: ./tasks/start-nomad-job.yml
     #   loop:
     #     - service_name: traefik
-    #     - service_name: backend
-    #     - service_name: ml
+    #     - service_name: eliza
     #   loop_control:
     #     loop_var: service
