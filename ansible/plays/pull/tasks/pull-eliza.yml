@@ -1,3 +1,11 @@
 ---
-- debug:
-    msg: eliza
+- name: Gather instance tags into a dictionary
+  set_fact:
+    my_instance_tags: '{{ my_instance_tags | default({}) | combine({tag_key: item.value}) }}'
+  loop: "{{ hostvars[inventory_hostname] | dict2items | selectattr('key','match','^ansible_ec2_tags_instance_.*') }}"
+  vars:
+    tag_key: "{{ item.key | regex_replace('^ansible_ec2_tags_instance_','') }}"
+
+- name: Show collected instance tags
+  debug:
+    var: my_instance_tags
