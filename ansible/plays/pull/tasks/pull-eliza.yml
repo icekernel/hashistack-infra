@@ -9,3 +9,21 @@
 - name: Show collected instance tags
   debug:
     var: my_instance_tags
+
+- name: Pull the .env file from S3
+  aws_s3:
+    mode: get
+    bucket: '{{ ansible_ec2_instance_identity_document_accountid }}-eliza-agents'
+    object: "{{ my_instance_tags['Name'] }}/eliza.env"
+    dest: '/srv/eliza/eliza/.env'
+    region: 'eu-central-1'
+  become: true
+
+- name: Pull the eliza.character.json from S3
+  aws_s3:
+    mode: get
+    bucket: '{{ ansible_ec2_instance_identity_document_accountid }}-eliza-agents'
+    object: "{{ my_instance_tags['Name'] }}/eliza.character.json"
+    dest: '/srv/eliza/eliza/characters/eliza.character.json'
+    region: 'eu-central-1'
+  become: true

@@ -1,6 +1,5 @@
 resource "aws_s3_bucket" "eliza_agents" {
   bucket = "${data.aws_caller_identity.current.account_id}-eliza-agents"
-  # Optionally force destroy if you want to remove a non-empty bucket on deletion.
   # force_destroy = true
 }
 
@@ -16,8 +15,15 @@ resource "aws_s3_bucket_policy" "eliza_agents_policy" {
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/prod1-eliza"
         },
-        Action    = [ "s3:GetObject" ],
-        Resource  = "arn:aws:s3:::${aws_s3_bucket.eliza_agents.id}/*"
+        Action = [
+          "s3:GetObject",
+          "s3:GetBucketLocation",
+          "s3:ListBucket"
+        ],
+        Resource = [
+          "arn:aws:s3:::${aws_s3_bucket.eliza_agents.id}",
+          "arn:aws:s3:::${aws_s3_bucket.eliza_agents.id}/*"
+        ]
       }
     ]
   })
