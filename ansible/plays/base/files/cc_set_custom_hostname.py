@@ -23,6 +23,32 @@ def load_environment_variables():
     return env_vars
 
 
+def fetch_imds_token():
+    try:
+        url = "http://169.254.169.254/latest/api/token"
+        headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
+        response = requests.put(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        return response.text.strip()
+    except Exception as e:
+        LOG.error("Failed to fetch IMDS token: %s", str(e))
+        return None
+
+
+def fetch_ipv4(token: str = None):
+    try:
+        url = "http://169.254.169.254/latest/meta-data/local-ipv4"
+        headers = {}
+        if token:
+            headers = {"X-aws-ec2-metadata-token": token}
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        return response.text.strip()
+    except Exception as e:
+        LOG.error("Failed to fetch local IPv4 address: %s", str(e))
+        return None
+
+
 MODULE_DESCRIPTION = """\
 This module sets instance's hostname based on its role, environment, and ip address.
 """
@@ -48,11 +74,11 @@ meta: MetaSchema = {
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    try:
-        # Fetch instance's local IPv4 address
-        ipv4 = requests.get("http://169.254.169.254/latest/meta-data/local-ipv4").text
-    except requests.RequestException as e:
-        LOG.error("Failed to fetch instance's local IPv4 address: %s", str(e))
+    token = fetch_imds_token()
+    ipv4 = fetch_ipv4(token)
+    LOG.debug("Fetched IPv4: '%s'", ipv4)
+    if not ipv4:
+        LOG.error("Empty IPv4 address received from metadata service")
         return
 
     environ = load_environment_variables()
@@ -63,14 +89,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     hostname = f"{environment}-{role}-{host}"
     LOG.debug("Setting hostname to: %s", hostname)
 
-    with open("/etc/hostname", "w") as file:
-        file.write(hostname)
-
-    with open("/etc/hosts", "a") as file:
-        file.write(f"127.0.0.1 {hostname}\n")
-
     try:
+        with open("/etc/hostname", "w") as file:
+            file.write(hostname)
+
+        with open("/etc/hosts", "a") as file:
+            file.write(f"127.0.0.1 {hostname}\n")
+
         subp.subp(["hostname", hostname], capture=True)
-    except subp.ProcessExecutionError as e:
-        LOG.error("Failed to set hostname: %s", str(e))
-        raise
+        LOG.info("Hostname successfully set to %s", hostname)
+    except Exception as e:
+        LOG.error("Unexpected error while setting hostname: %s", str(e))

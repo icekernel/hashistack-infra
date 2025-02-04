@@ -5,12 +5,12 @@
     - amazon.aws.ec2_metadata_facts:
       register: meta
 
+    - debug:
+        var: meta
+
     # this needs metadata access for the instance set in launch template!!
     - set_fact:
         role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
-
-    - debug:
-        var: meta
 
     # 1 - always run
 
