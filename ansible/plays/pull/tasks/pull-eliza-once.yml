@@ -1,0 +1,78 @@
+---
+- name: Gather instance tags into a dictionary
+  set_fact:
+    my_instance_tags: '{{ my_instance_tags | default({}) | combine({tag_key: item.value}) }}'
+  loop: "{{ hostvars[inventory_hostname] | dict2items | selectattr('key','match','^ansible_ec2_tags_instance_.*') }}"
+  vars:
+    tag_key: "{{ item.key | regex_replace('^ansible_ec2_tags_instance_','') }}"
+
+- name: Set aws_region from the instance metadata
+  set_fact:
+    aws_region: '{{ meta.ansible_facts.ansible_ec2_placement_region }}'
+
+- name: Set the environment from the instance metadata
+  set_fact:
+    ENVIRONMENT: '{{ my_instance_tags.Environment }}'
+
+- name: Show collected instance tags
+  debug:
+    var: my_instance_tags
+
+- name: Get the customer id from the instance tag
+  set_fact:
+    customer_id: '{{ my_instance_tags.CustomerId }}'
+
+- name: Fetch the secret from Secrets Manager
+  set_fact:
+    eliza_secret: "{{ lookup('amazon.aws.aws_secret', ENVIRONMENT +'-'+ role +'-'+ customer_id, region=aws_region) }}"
+
+- name: Place the meta.json file in the right place
+  copy:
+    content: '{{ eliza_secret.meta | to_nice_json }}'
+    dest: /home/eliza/meta.json
+  become: true
+
+- name: Place the character.json file in the right place
+  copy:
+    content: '{{ eliza_secret.character | to_nice_json }}'
+    dest: /home/eliza/eliza.character.json
+  become: true
+
+- name: Place the env file in the right place
+  copy:
+    content: '{{ eliza_secret.env | to_nice_json }}'
+    dest: /home/eliza/eliza.env.json
+  become: true
+
+- name: Make the eliza.env.json a valid dotenv file
+  shell: |
+    jq -r 'to_entries | .[] | .key + "=" + .value' /home/eliza/eliza.env.json > /home/eliza/eliza.env
+  become: true
+
+  # vars:
+
+  #   git_repo: 'git@github.com:Use-Prism/{{ role }}.git'
+  #   srv_base_dir: /srv/{{ role }}
+  #   git_repo_dest: '{{ srv_base_dir }}/{{ role }}.git'
+  #   checkout_dest: '{{ srv_base_dir }}/{{ role }}'
+  #   owner: '{{ role }}'
+  #   group: '{{ role }}'
+
+- name: Set github_repo from the instance metadata
+  set_fact:
+    github_repo: '{{ my_instance_tags.GitHubRepoUrl }}'
+
+- name: Set checkout_revision from the instance metadata
+  set_fact:
+    checkout_revision: '{{ my_instance_tags.CheckoutRevision }}'
+
+- name: Clone service's git repository
+  ansible.builtin.git:
+    repo: '{{ github_repo }}'
+    dest: '/home/{{ role }}/{{ role }}'
+    separate_git_dir: '/home/{{role}}/{{role}}.git'
+    version: '{{ checkout_revision }}'
+    depth: 1
+    accept_hostkey: true
+    # key_file: '{{ key_file }}'
+  become: true

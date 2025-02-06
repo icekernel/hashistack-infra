@@ -82,8 +82,8 @@ def lookup_private_subnets(ec2, vpc_id, product_id, environment):
     return subnets
 
 
-def create_eliza_secret(sm_client, customer_id, config_data):
-    secret_name = f"eliza-config-{customer_id}"
+def create_eliza_secret(sm_client, environment, role, customer_id, config_data):
+    secret_name = f"{environment}-{role}-{customer_id}"
     try:
         # If the secret already exists, update its value.
         sm_client.describe_secret(SecretId=secret_name)
@@ -223,7 +223,9 @@ def create_customer_resources(event):
 
     # Create or update secret
     sm_client = boto3.client("secretsmanager")
-    secret_name = create_eliza_secret(sm_client, customer_id, config_str)
+    secret_name = create_eliza_secret(
+        sm_client, environment, role, customer_id, config_str
+    )
 
     # Create instance profile
     iam_client = boto3.client("iam")
@@ -331,8 +333,92 @@ def update_customer_resources(event):
 
 
 def destroy_customer_resources(event):
-    # TODO: Implement destroy logic
-    return {"statusCode": 200, "body": "Destroy stub."}
+    # Pick required variables from event or environment
+    environment = event.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    role = event.get("ROLE", os.environ.get("ROLE", "eliza"))
+    customer_id = event.get("customer_id")
+    if not customer_id:
+        return {"statusCode": 400, "body": "Missing customer_id"}
+
+    # Assume secret name was created as follows
+    secret_name = f"{environment}-{role}-{customer_id}"
+    LOG.info("Scheduling deletion of secret %s", secret_name)
+    sm_client = boto3.client("secretsmanager")
+    try:
+        sm_client.delete_secret(SecretId=secret_name, RecoveryWindowInDays=7)
+    except Exception as e:
+        LOG.error("Error scheduling secret deletion: %s", str(e))
+
+    # Delete IAM role and instance profile
+    iam_client = boto3.client("iam")
+    role_name = f"{environment}-{role}-{customer_id}"
+    LOG.info("Deleting IAM resources for role %s", role_name)
+    try:
+        # Detach managed policies
+        attached = iam_client.list_attached_role_policies(RoleName=role_name)
+        for policy in attached.get("AttachedPolicies", []):
+            iam_client.detach_role_policy(
+                RoleName=role_name, PolicyArn=policy["PolicyArn"]
+            )
+    except Exception as e:
+        LOG.error(
+            "Error detaching managed policies from role %s: %s", role_name, str(e)
+        )
+    try:
+        # Delete inline policies
+        inline = iam_client.list_role_policies(RoleName=role_name)
+        for policy_name_key in inline.get("PolicyNames", []):
+            iam_client.delete_role_policy(
+                RoleName=role_name, PolicyName=policy_name_key
+            )
+    except Exception as e:
+        LOG.error("Error deleting inline policies from role %s: %s", role_name, str(e))
+    try:
+        # Remove role from instance profile if attached
+        profile = iam_client.get_instance_profile(InstanceProfileName=role_name)
+        for r in profile["InstanceProfile"].get("Roles", []):
+            iam_client.remove_role_from_instance_profile(
+                InstanceProfileName=role_name, RoleName=r["RoleName"]
+            )
+    except Exception as e:
+        LOG.error("Error removing role from instance profile %s: %s", role_name, str(e))
+    try:
+        # Delete the instance profile
+        iam_client.delete_instance_profile(InstanceProfileName=role_name)
+    except Exception as e:
+        LOG.error("Error deleting instance profile %s: %s", role_name, str(e))
+    try:
+        # Delete the IAM role
+        iam_client.delete_role(RoleName=role_name)
+    except Exception as e:
+        LOG.error("Error deleting IAM role %s: %s", role_name, str(e))
+
+    # Terminate EC2 instance(s) associated with the customer
+    ec2 = boto3.client("ec2", region_name=os.environ.get("AWS_REGION", "eu-central-1"))
+    try:
+        reservations = ec2.describe_instances(
+            Filters=[
+                {"Name": "tag:CustomerId", "Values": [customer_id]},
+                {
+                    "Name": "instance-state-name",
+                    "Values": ["pending", "running", "stopping", "stopped"],
+                },
+            ]
+        ).get("Reservations", [])
+        instance_ids = [
+            inst["InstanceId"] for res in reservations for inst in res["Instances"]
+        ]
+        if instance_ids:
+            LOG.info("Terminating instances %s", instance_ids)
+            ec2.terminate_instances(InstanceIds=instance_ids)
+    except Exception as e:
+        LOG.error(
+            "Error terminating instances for customer %s: %s", customer_id, str(e)
+        )
+    return {
+        "statusCode": 200,
+        "body": f"Deletion scheduled for resources of customer {customer_id}.",
+    }
 
 
 def lambda_handler(event, context):
@@ -360,6 +446,15 @@ def generate_customer_id():
 
 
 if __name__ == "__main__":
+    import sys
+    import json
+
+    lifecycle = "create"
+    customer_id = generate_customer_id()
+    if len(sys.argv) >= 2:
+        lifecycle = "destroy"
+        customer_id = sys.argv[1]
+
     raw_config = r"""{
       "env": {
         "CACHE_STORE": "database",
@@ -447,7 +542,7 @@ if __name__ == "__main__":
         "character-config": {
           "name": "C-3PO",
           "clients": [],
-          "modelProvider": "anthropic",
+          "modelProvider": "openai",
           "settings": {
             "voice": {
               "model": "en_GB-alan-medium"
@@ -568,7 +663,13 @@ if __name__ == "__main__":
     }"""
     # Parse, update the customerId, then reserialize the JSON
     config = json.loads(raw_config)
-    config["meta"]["customerId"] = generate_customer_id()
+    config["meta"]["customerId"] = customer_id
     templated_config = json.dumps(config)
 
-    print(lambda_handler({"eliza_config": templated_config}, {}))
+    event = {
+        "lifecycle": lifecycle,
+        "customer_id": customer_id,
+        "eliza_config": templated_config,
+    }
+
+    print(lambda_handler(event, {}))
