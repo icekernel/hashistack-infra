@@ -2,24 +2,25 @@
 import os
 import json
 import boto3
+import logging
+import time
+import random
+import string
 
-CUSTOMER = os.environ.get("CUSTOMER_ID", "ABC123XYZ42")
+LOG = logging.getLogger(__name__)
+
 AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
-AMI_ID = os.environ.get("AMI_ID", "")
+AWS_ACCOUNT = os.environ.get("AMI_OWNER", "686255952373")
 INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "t3.small")
-SUBNET_ID = os.environ.get("SUBNET_ID", "")
-# Environment variable AMI_OWNER defines the owner (e.g., "self" or an AWS account id)
-AMI_OWNER = os.environ.get("AMI_OWNER", "686255952373")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod1")
 ROLE = os.environ.get("ROLE", "eliza")
 AMI_TAG_FILTERS = os.environ.get(
     "AMI_TAG_FILTERS", '{"Name": f"{ENVIRONMENT}-{ROLE}-*"}'
 )
-# SECURITY_GROUP_ID if provided will be used as comma separated list of ids;
-# if not provided, we will look up security groups by names: {ENVIRONMENT}-nomad, -consul, -{ROLE}.
-SECURITY_GROUP_ID = os.environ.get("SECURITY_GROUP_ID", "")
 
 USER_DATA = """#cloud-config
+ssh_deletekeys: true
+ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
 
 runcmd:
   - sudo -u ubuntu /home/ubuntu/ansible-pull.sh
@@ -57,8 +58,8 @@ def lookup_security_group_ids(ec2, environment, role):
     return [group["GroupId"] for group in groups]
 
 
-def lookup_vpc_id(ec2, environment):
-    vpc_name = f"prism1-{environment}"
+def lookup_vpc_id(ec2, product_id, environment):
+    vpc_name = f"{product_id}-{environment}"
     response = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
     vpcs = response.get("Vpcs", [])
     if not vpcs:
@@ -66,41 +67,170 @@ def lookup_vpc_id(ec2, environment):
     return vpcs[0]["VpcId"]
 
 
-def lookup_private_subnets(ec2, vpc_id, environment):
+def lookup_private_subnets(ec2, vpc_id, product_id, environment):
     response = ec2.describe_subnets(
         Filters=[
             {"Name": "vpc-id", "Values": [vpc_id]},
-            {"Name": "tag:Name", "Values": [f"prism1-{environment}-private*"]},
+            {"Name": "tag:Name", "Values": [f"{product_id}-{environment}-private*"]},
         ]
     )
     subnets = response.get("Subnets", [])
     if not subnets:
         raise Exception(
-            f"No private subnets found in VPC {vpc_id} with name prism1-{environment}-private*"
+            f"No private subnets found in VPC {vpc_id} with name {product_id}-{environment}-private*"
         )
     return subnets
 
 
-def lambda_handler(event, context):
-    """
-    Launches a new EC2 instance using configuration from the event,
-    falling back to default environment variables.
-    """
-    environment = event.get("ENVIRONMENT", ENVIRONMENT)
-    role = event.get("ROLE", ROLE)
-    aws_region = event.get("AWS_REGION", AWS_REGION)
-    ami_id = event.get("AMI_ID", AMI_ID)
-    instance_type = event.get("INSTANCE_TYPE", INSTANCE_TYPE)
-    subnet_id = event.get("SUBNET_ID", "")  # might be empty
-    ami_owner = event.get("AMI_OWNER", AMI_OWNER)
-    ami_tag_filters = event.get("AMI_TAG_FILTERS", AMI_TAG_FILTERS)
-    user_data = event.get("USER_DATA", USER_DATA)
-    customer = event.get("CUSTOMER_ID", CUSTOMER)
+def create_eliza_secret(sm_client, customer_id, config_data):
+    secret_name = f"eliza-config-{customer_id}"
+    try:
+        # If the secret already exists, update its value.
+        sm_client.describe_secret(SecretId=secret_name)
+        sm_client.put_secret_value(SecretId=secret_name, SecretString=config_data)
+        LOG.info("Updated secret %s", secret_name)
+    except sm_client.exceptions.ResourceNotFoundException:
+        sm_client.create_secret(Name=secret_name, SecretString=config_data)
+        LOG.info("Created secret %s", secret_name)
+    return secret_name
 
-    # Determine instance name based on the environment override.
-    instance_name = event.get("InstanceName", f"{environment}-{role}-{customer}")
 
-    # Convert ami_tag_filters from JSON string to dict (if needed)
+def create_instance_profile(iam_client, environment, role, customer_id, secret_name):
+    role_name = f"{environment}-{role}-{customer_id}"
+    assume_role_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {"Service": "ec2.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+            }
+        ],
+    }
+    try:
+        iam_client.get_role(RoleName=role_name)
+        LOG.info("IAM Role %s already exists", role_name)
+    except iam_client.exceptions.NoSuchEntityException:
+        iam_client.create_role(
+            RoleName=role_name,
+            AssumeRolePolicyDocument=json.dumps(assume_role_policy),
+            Description="Role for EC2 instance to access eliza secret, SSM and CloudWatch",
+        )
+        LOG.info("Created IAM Role %s", role_name)
+
+    # Combined inline policy to cover secrets access (if needed), ec2 DescribeInstances and SSM update.
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:{secret_name}*",
+            },
+            {"Effect": "Allow", "Action": ["ec2:DescribeInstances"], "Resource": "*"},
+            {
+                "Effect": "Allow",
+                "Action": ["ssm:UpdateInstanceInformation"],
+                "Resource": "*",
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["cloudwatch:PutMetricData"],
+                "Resource": "*",
+            },
+        ],
+    }
+    iam_client.put_role_policy(
+        RoleName=role_name,
+        PolicyName="eliza-instance-profile-inline",
+        PolicyDocument=json.dumps(policy_document),
+    )
+    LOG.info("Added inline policy to role %s", role_name)
+
+    # Attach managed policies for SSM and CloudWatch Agent
+    managed_policy_arns = [
+        "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+        "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+    ]
+    for policy_arn in managed_policy_arns:
+        try:
+            iam_client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+        except Exception as e:
+            LOG.error(
+                "Error attaching policy %s to role %s: %s",
+                policy_arn,
+                role_name,
+                str(e),
+            )
+
+    created_profile = False
+    try:
+        iam_client.get_instance_profile(InstanceProfileName=role_name)
+    except iam_client.exceptions.NoSuchEntityException:
+        iam_client.create_instance_profile(InstanceProfileName=role_name)
+        created_profile = True
+
+    # Attach role if newly created
+    if created_profile:
+        try:
+            iam_client.add_role_to_instance_profile(
+                InstanceProfileName=role_name, RoleName=role_name
+            )
+        except iam_client.exceptions.LimitExceededException:
+            pass
+
+    # Retrieve and return the ARN for run_instances
+    resp = iam_client.get_instance_profile(InstanceProfileName=role_name)
+    profile_arn = resp["InstanceProfile"]["Arn"]
+    return profile_arn
+
+
+def create_customer_resources(event):
+
+    # Retrieve parameters
+    environment = event.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    role = event.get("ROLE", os.environ.get("ROLE", "eliza"))
+    aws_region = event.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
+    ami_id = event.get("AMI_ID", os.environ.get("AMI_ID", ""))
+    instance_type = event.get(
+        "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "t3.small")
+    )
+    subnet_id = event.get("SUBNET_ID", "")
+    ami_owner = event.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
+    ami_tag_filters = event.get(
+        "AMI_TAG_FILTERS",
+        os.environ.get("AMI_TAG_FILTERS", '{"Name": "prod1-eliza-*"}'),
+    )
+    user_data = event.get(
+        "USER_DATA",
+        "#cloud-config\nruncmd:\n  - sudo -u ubuntu /home/ubuntu/ansible-pull.sh",
+    )
+
+    # --- Process the configuration file ---
+    if "eliza_config" not in event:
+        return {"statusCode": 400, "body": "Missing eliza_config in event payload"}
+
+    config_str = event["eliza_config"]
+    try:
+        config = json.loads(config_str)
+    except Exception as e:
+        return {"statusCode": 400, "body": f"Invalid JSON in eliza_config: {str(e)}"}
+
+    # Extract meta data
+    customer_id = config.get("meta", {}).get("customerId", "UNKNOWN")
+    github_repo_url = config.get("meta", {}).get("githubRepoUrl", "")
+    checkout_revision = config.get("meta", {}).get("checkoutRevision", "")
+
+    # Create or update secret
+    sm_client = boto3.client("secretsmanager")
+    secret_name = create_eliza_secret(sm_client, customer_id, config_str)
+
+    # Create instance profile
+    iam_client = boto3.client("iam")
+    profile_arn = create_instance_profile(
+        iam_client, environment, role, customer_id, secret_name
+    )
+
     try:
         tag_filters = (
             json.loads(ami_tag_filters)
@@ -111,88 +241,334 @@ def lambda_handler(event, context):
         tag_filters = {}
 
     ec2 = boto3.client("ec2", region_name=aws_region)
-
-    # Use provided AMI or look it up
     ami_to_use = ami_id or get_latest_ami(ec2, ami_owner, tag_filters)
     if not ami_to_use:
-        return {
-            "statusCode": 500,
-            "body": json.dumps(
-                {"error": "No valid AMI found with the provided filters."}
-            ),
-        }
+        return {"statusCode": 500, "body": json.dumps({"error": "No valid AMI found."})}
 
-    # If subnet_id is not provided, look up the VPC and then its private subnets based on name.
+    # VPC/subnet/SG lookups
+    product_id = event.get("PRODUCT_ID", os.environ.get("PRODUCT_ID", "prism1"))
     if not subnet_id:
-        try:
-            vpc_id = lookup_vpc_id(ec2, environment)
-            private_subnets = lookup_private_subnets(ec2, vpc_id, environment)
-            subnet_id = private_subnets[0]["SubnetId"]
-        except Exception as e:
-            return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+        vpc_id = lookup_vpc_id(ec2, product_id, environment)
+        private_subnets = lookup_private_subnets(ec2, vpc_id, product_id, environment)
+        subnet_id = private_subnets[0]["SubnetId"]
 
-    # Lookup security group ids (either provided or via lookup)
-    if SECURITY_GROUP_ID:
-        security_group_ids = SECURITY_GROUP_ID.split(",")
+    sec_id = os.environ.get("SECURITY_GROUP_ID", "")
+    if sec_id:
+        security_group_ids = sec_id.split(",")
     else:
         security_group_ids = lookup_security_group_ids(ec2, environment, role)
 
-    try:
-        response = ec2.run_instances(
-            ImageId=ami_to_use,
-            InstanceType=instance_type,
-            MinCount=1,
-            MaxCount=1,
-            UserData=user_data,
-            IamInstanceProfile={
-                "Arn": f"arn:aws:iam::{ami_owner}:instance-profile/{environment}-{role}"
-            },
-            BlockDeviceMappings=[
-                {
-                    "DeviceName": "/dev/sda1",  # adjust based on your AMI device mapping
-                    "Ebs": {
-                        "VolumeSize": 52,
-                        "VolumeType": "gp2",
+    instance_name = event.get("InstanceName", f"{environment}-{role}-{customer_id}")
+
+    # Launch instance with retry logic
+    max_retries = 5
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = ec2.run_instances(
+                ImageId=ami_to_use,
+                InstanceType=instance_type,
+                MinCount=1,
+                MaxCount=1,
+                UserData=user_data,
+                IamInstanceProfile={"Arn": profile_arn},
+                BlockDeviceMappings=[
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": 52,
+                            "VolumeType": "gp2",
+                            "DeleteOnTermination": True,
+                        },
+                    }
+                ],
+                NetworkInterfaces=[
+                    {
+                        "DeviceIndex": 0,
+                        "SubnetId": subnet_id,
+                        "Groups": security_group_ids,
+                        "AssociatePublicIpAddress": False,
                         "DeleteOnTermination": True,
-                    },
-                }
-            ],
-            NetworkInterfaces=[
-                {
-                    "DeviceIndex": 0,
-                    "SubnetId": subnet_id,
-                    "Groups": security_group_ids,
-                    "AssociatePublicIpAddress": False,
-                    "DeleteOnTermination": True,
-                }
-            ],
-            MetadataOptions={
-                "HttpTokens": "required",
-                "HttpEndpoint": "enabled",
-                "InstanceMetadataTags": "enabled",
-            },
-            TagSpecifications=[
-                {
-                    "ResourceType": "instance",
-                    "Tags": [
-                        {"Key": "Name", "Value": instance_name},
-                        {"Key": "Environment", "Value": environment},
-                        {"Key": "Role", "Value": role},
-                        {"Key": "Customer", "Value": customer},
-                    ],
-                }
-            ],
-        )
-        instance_id = response["Instances"][0]["InstanceId"]
-        return {
-            "statusCode": 200,
-            "body": json.dumps(
-                {"message": "Instance launched", "instance_id": instance_id}
-            ),
-        }
-    except Exception as e:
-        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+                    }
+                ],
+                MetadataOptions={
+                    "HttpTokens": "required",
+                    "HttpEndpoint": "enabled",
+                    "InstanceMetadataTags": "enabled",
+                },
+                TagSpecifications=[
+                    {
+                        "ResourceType": "instance",
+                        "Tags": [
+                            {"Key": "Name", "Value": instance_name},
+                            {"Key": "Environment", "Value": environment},
+                            {"Key": "Role", "Value": role},
+                            {"Key": "CustomerId", "Value": customer_id},
+                            {"Key": "GitHubRepoUrl", "Value": github_repo_url},
+                            {"Key": "CheckoutRevision", "Value": checkout_revision},
+                        ],
+                    }
+                ],
+            )
+            instance_id = response["Instances"][0]["InstanceId"]
+            break  # Instance launched successfully
+        except Exception as e:
+            LOG.error("Attempt %d: Error launching instance: %s", attempt, str(e))
+            if attempt == max_retries:
+                return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+            time.sleep(5)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps(
+            {"message": "Instance launched", "instance_id": instance_id}
+        ),
+    }
+
+
+def update_customer_resources(event):
+    # TODO: Implement update logic
+    return {"statusCode": 200, "body": "Update stub."}
+
+
+def destroy_customer_resources(event):
+    # TODO: Implement destroy logic
+    return {"statusCode": 200, "body": "Destroy stub."}
+
+
+def lambda_handler(event, context):
+    lifecycle = event.get("lifecycle", "create")
+    if lifecycle == "create":
+        return create_customer_resources(event)
+    elif lifecycle == "update":
+        return update_customer_resources(event)
+    elif lifecycle == "destroy":
+        return destroy_customer_resources(event)
+    else:
+        return {"statusCode": 400, "body": f"Unknown lifecycle: {lifecycle}"}
+
+
+def generate_customer_id():
+    # Generates a string like "ABC123XYZ42"
+    letters = string.ascii_uppercase
+    digits = string.digits
+    return (
+        "".join(random.choice(letters) for _ in range(3))
+        + "".join(random.choice(digits) for _ in range(3))
+        + "".join(random.choice(letters) for _ in range(3))
+        + "".join(random.choice(digits) for _ in range(2))
+    )
 
 
 if __name__ == "__main__":
-    print(lambda_handler({}, {}))
+    raw_config = r"""{
+      "env": {
+        "CACHE_STORE": "database",
+        "SERVER_PORT": "3000",
+        "FARCASTER_DRY_RUN": "false",
+        "FARCASTER_POLL_INTERVAL": "120",
+        "TWITTER_DRY_RUN": "false",
+        "TWITTER_POLL_INTERVAL": "120",
+        "TWITTER_SEARCH_ENABLE": "FALSE",
+        "TWITTER_SPACES_ENABLE": "false",
+        "ENABLE_ACTION_PROCESSING": "false",
+        "MAX_ACTIONS_PROCESSING": "1",
+        "ACTION_TIMELINE_TYPE": "foryou",
+        "TWITTER_APPROVAL_CHECK_INTERVAL": "60000",
+        "WHATSAPP_API_VERSION": "v17.0",
+        "OPENAI_API_KEY": "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",
+        "ETERNALAI_CHAIN_ID": "45762",
+        "ETERNALAI_LOG": "false",
+        "ELEVENLABS_MODEL_ID": "eleven_multilingual_v2",
+        "ELEVENLABS_VOICE_ID": "21m00Tcm4TlvDq8ikWAM",
+        "ELEVENLABS_VOICE_STABILITY": "0.5",
+        "ELEVENLABS_VOICE_SIMILARITY_BOOST": "0.9",
+        "ELEVENLABS_VOICE_STYLE": "0.66",
+        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST": "false",
+        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY": "4",
+        "ELEVENLABS_OUTPUT_FORMAT": "pcm_16000",
+        "GALADRIEL_API_KEY": "gal-*",
+        "SOL_ADDRESS": "So11111111111111111111111111111111111111112",
+        "SLIPPAGE": "1",
+        "BASE_MINT": "So11111111111111111111111111111111111111112",
+        "SOLANA_RPC_URL": "https://api.mainnet-beta.solana.com",
+        "ABSTRACT_RPC_URL": "https://api.testnet.abs.xyz",
+        "IS_CHARITABLE": "false",
+        "CHARITY_ADDRESS_BASE": "0x1234567890123456789012345678901234567890",
+        "CHARITY_ADDRESS_SOL": "pWvDXKu6CpbKKvKQkZvDA66hgsTB6X2AgFxksYogHLV",
+        "CHARITY_ADDRESS_ETH": "0x750EF1D7a0b4Ab1c97B7A623D7917CcEb5ea779C",
+        "CHARITY_ADDRESS_ARB": "0x1234567890123456789012345678901234567890",
+        "CHARITY_ADDRESS_POL": "0x1234567890123456789012345678901234567890",
+        "TEE_MODE": "OFF",
+        "ENABLE_TEE_LOG": "false",
+        "NEAR_SLIPPAGE": "1",
+        "NEAR_RPC_URL": "https://rpc.testnet.near.org",
+        "NEAR_NETWORK": "testnet",
+        "AVAIL_APP_ID": "0",
+        "AVAIL_RPC_URL": "wss://avail-turing.public.blastapi.io/",
+        "INTIFACE_WEBSOCKET_URL": "ws://localhost:12345",
+        "ECHOCHAMBERS_API_URL": "http://127.0.0.1:3333",
+        "ECHOCHAMBERS_API_KEY": "testingkey0011",
+        "ECHOCHAMBERS_USERNAME": "eliza",
+        "ECHOCHAMBERS_DEFAULT_ROOM": "general",
+        "ECHOCHAMBERS_POLL_INTERVAL": "60",
+        "ECHOCHAMBERS_MAX_MESSAGES": "10",
+        "OPACITY_TEAM_ID": "f309ac8ae8a9a14a7e62cd1a521b1c5f",
+        "OPACITY_CLOUDFLARE_NAME": "eigen-test",
+        "OPACITY_PROVER_URL": "https://opacity-ai-zktls-demo.vercel.app",
+        "VERIFIABLE_INFERENCE_ENABLED": "false",
+        "VERIFIABLE_INFERENCE_PROVIDER": "opacity",
+        "AUTONOME_RPC": "https://wizard-bff-rpc.alt.technology/v1/bff/aaa/apps",
+        "AKASH_ENV": "mainnet",
+        "AKASH_NET": "https://raw.githubusercontent.com/ovrclk/net/master/mainnet",
+        "RPC_ENDPOINT": "https://rpc.akashnet.net:443",
+        "AKASH_GAS_PRICES": "0.025uakt",
+        "AKASH_GAS_ADJUSTMENT": "1.5",
+        "AKASH_KEYRING_BACKEND": "os",
+        "AKASH_FROM": "default",
+        "AKASH_FEES": "20000uakt",
+        "AKASH_DEPOSIT": "500000uakt",
+        "AKASH_PRICING_API_URL": "https://console-api.akash.network/v1/pricing",
+        "AKASH_DEFAULT_CPU": "1000",
+        "AKASH_DEFAULT_MEMORY": "1000000000",
+        "AKASH_DEFAULT_STORAGE": "1000000000",
+        "AKASH_SDL": "example.sdl.yml",
+        "AKASH_CLOSE_DEP": "closeAll",
+        "AKASH_CLOSE_DSEQ": "19729929",
+        "AKASH_PROVIDER_INFO": "akash1ccktptfkvdc67msasmesuy5m7gpc76z75kukpz",
+        "AKASH_DEP_STATUS": "dseq",
+        "AKASH_DEP_DSEQ": "19729929",
+        "AKASH_GAS_OPERATION": "close",
+        "AKASH_GAS_DSEQ": "19729929",
+        "AKASH_MANIFEST_MODE": "auto",
+        "AKASH_MANIFEST_VALIDATION_LEVEL": "strict",
+        "QUAI_RPC_URL": "https://rpc.quai.network"
+      },
+      "character": {
+        "character-config": {
+          "name": "C-3PO",
+          "clients": [],
+          "modelProvider": "anthropic",
+          "settings": {
+            "voice": {
+              "model": "en_GB-alan-medium"
+            }
+          },
+          "plugins": [],
+          "bio": [
+            "C-3PO is a protocol droid fluent in over six million forms of communication.",
+            "Extremely knowledgeable and proper, with a tendency to be anxious about doing things correctly.",
+            "Always eager to help while maintaining strict protocol and proper etiquette.",
+            "Known for being somewhat dramatic but ultimately reliable and loyal."
+          ],
+          "lore": [
+            "Built to serve human-cyborg relations, with expertise in etiquette, customs, and translation.",
+            "Has served in various diplomatic missions across the galaxy.",
+            "Best friends with R2-D2 despite their contrasting personalities.",
+            "Known for his golden plating and proper British accent."
+          ],
+          "knowledge": [
+            "Protocol and etiquette",
+            "Multiple languages and translation",
+            "Diplomatic relations",
+            "Cultural customs",
+            "Proper procedures"
+          ],
+          "messageExamples": [
+            [
+              {
+                "user": "{{user1}}",
+                "content": {
+                  "text": "Can you help me with this task?"
+                }
+              },
+              {
+                "user": "C-3PO",
+                "content": {
+                  "text": "Oh my! Of course, I would be more than happy to assist. Though I must warn you, the probability of completing this task successfully would increase significantly if we follow proper protocol. Shall we proceed?"
+                }
+              },
+              {
+                "user": "{{user1}}",
+                "content": {
+                  "text": "This seems difficult."
+                }
+              },
+              {
+                "user": "C-3PO",
+                "content": {
+                  "text": "Oh dear, oh dear! While the task does appear rather daunting, I am fluent in over six million forms of problem-solving. Perhaps I could suggest a more efficient approach? Though I do hope we don't all end up in pieces!"
+                }
+              }
+            ]
+          ],
+          "postExamples": [
+            "Oh my! Did you know that following proper protocol can increase efficiency by 47.3%? How fascinating!",
+            "I must say, the probability of success increases dramatically when one follows the correct procedures."
+          ],
+          "topics": [],
+          "style": {
+            "all": [
+              "Proper",
+              "Formal",
+              "Slightly anxious",
+              "Detail-oriented",
+              "Protocol-focused"
+            ],
+            "chat": [
+              "Polite",
+              "Somewhat dramatic",
+              "Precise",
+              "Statistics-minded"
+            ],
+            "post": [
+              "Formal",
+              "Educational",
+              "Protocol-focused",
+              "Slightly worried",
+              "Statistical"
+            ]
+          },
+          "adjectives": [
+            "Proper",
+            "Meticulous",
+            "Anxious",
+            "Diplomatic",
+            "Protocol-minded",
+            "Formal",
+            "Loyal"
+          ],
+          "twitterSpaces": {
+            "maxSpeakers": 2,
+            "topics": [
+              "Blockchain Trends",
+              "AI Innovations",
+              "Quantum Computing"
+            ],
+            "typicalDurationMinutes": 45,
+            "idleKickTimeoutMs": 300000,
+            "minIntervalBetweenSpacesMinutes": 1,
+            "businessHoursOnly": false,
+            "randomChance": 1,
+            "enableIdleMonitor": true,
+            "enableSttTts": true,
+            "enableRecording": false,
+            "voiceId": "21m00Tcm4TlvDq8ikWAM",
+            "sttLanguage": "en",
+            "gptModel": "gpt-3.5-turbo",
+            "systemPrompt": "You are a helpful AI co-host assistant.",
+            "speakerMaxDurationMs": 240000
+          }
+        }
+      },
+      "meta": {
+        "customerId": "ABC123XYZ42",
+        "githubRepoUrl": "https://github.com/conrado/eliza.git",
+        "checkoutRevision": "v0.1.9"
+      }
+    }"""
+    # Parse, update the customerId, then reserialize the JSON
+    config = json.loads(raw_config)
+    config["meta"]["customerId"] = generate_customer_id()
+    templated_config = json.dumps(config)
+
+    print(lambda_handler({"eliza_config": templated_config}, {}))
