@@ -19,8 +19,6 @@ AMI_TAG_FILTERS = os.environ.get(
 )
 
 USER_DATA = """#cloud-config
-ssh_deletekeys: true
-ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
 
 runcmd:
   - sudo -u ubuntu /home/ubuntu/ansible-pull.sh

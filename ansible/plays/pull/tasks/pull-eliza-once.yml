@@ -76,24 +76,25 @@
 - name: Place docker-compose.yml in the right place
   copy:
     content: |
-      tee:
-        build:
-            context: ./eliza/
-            dockerfile: ./eliza/Dockerfile
-        stdin_open: true
-        tty: true
-        volumes:
-            - /var/run/tappd.sock:/var/run/tappd.sock
-            - tee:/app/packages/client-twitter/src/tweetcache
-            - tee:/app/db.sqlite
-            - ./eliza.character.json:/app/characters/eliza.character.json
-        env_file:
-            - ./eliza.env
-        ports:
-          - "3000:3000"
-        restart: always
-        command:
-          ["pnpm", "start", '--character="characters/eliza.character.json"']
+      services:
+        tee:
+          build:
+              context: ./eliza/
+              dockerfile: Dockerfile
+          stdin_open: true
+          tty: true
+          volumes:
+              - /var/run/tappd.sock:/var/run/tappd.sock
+              - tee:/app/packages/client-twitter/src/tweetcache
+              - tee:/app/db.sqlite
+              - ./eliza.character.json:/app/characters/eliza.character.json
+          env_file:
+              - ./eliza.env
+          ports:
+            - "3000:3000"
+          restart: always
+          command:
+            ["pnpm", "start", '--character="characters/eliza.character.json"']
       volumes:
           tee:
     dest: '/home/{{ role }}/docker-compose.yml'
@@ -113,7 +114,6 @@
     timeout: 300
   become: true
   become_user: '{{ role }}'
-
 # - name: Register eliza on consul
 #   ansible.builtin.command:
 #     cmd: consul services register /home/{{ role }}/eliza.consul.json
