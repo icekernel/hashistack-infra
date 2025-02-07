@@ -31,23 +31,27 @@
     content: '{{ eliza_secret.meta | to_nice_json }}'
     dest: /home/eliza/meta.json
   become: true
+  become_user: '{{ role }}'
 
 - name: Place the character.json file in the right place
   copy:
     content: '{{ eliza_secret.character | to_nice_json }}'
     dest: /home/eliza/eliza.character.json
   become: true
+  become_user: '{{ role }}'
 
 - name: Place the env file in the right place
   copy:
     content: '{{ eliza_secret.env | to_nice_json }}'
     dest: /home/eliza/eliza.env.json
   become: true
+  become_user: '{{ role }}'
 
 - name: Make the eliza.env.json a valid dotenv file
   shell: |
     jq -r 'to_entries | .[] | .key + "=" + .value' /home/eliza/eliza.env.json > /home/eliza/eliza.env
   become: true
+  become_user: '{{ role }}'
 
 - name: Set github_repo from the instance metadata
   set_fact:
