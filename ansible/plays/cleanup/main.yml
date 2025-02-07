@@ -1,0 +1,19 @@
+---
+- name: Cleanup instance for AMI snapshot
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Find SSH host keys
+      ansible.builtin.find:
+        paths: /etc/ssh/
+        patterns: 'ssh_host_*'
+        file_type: file
+      register: ssh_keys
+
+    - name: Remove found SSH host keys
+      ansible.builtin.file:
+        path: '{{ item.path }}'
+        state: absent
+      loop: '{{ ssh_keys.files }}'
+      when: ssh_keys.matched > 0
