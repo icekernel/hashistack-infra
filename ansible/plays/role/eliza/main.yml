@@ -23,6 +23,9 @@
     - ansible.builtin.import_tasks:
         file: ./tasks/install-node.yml
 
+    - ansible.builtin.import_tasks:
+        file: ./tasks/docker-requirements.yml
+
     # we're now building custom repositories in the pull service
 
     # - name: Clone service's git repository
