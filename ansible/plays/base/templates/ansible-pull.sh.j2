@@ -3,6 +3,7 @@
 . /opt/ansible.venv/bin/activate
 
 ANSIBLE_CONFIG=/home/ubuntu/ansible_pull_repo/ansible/ansible-pull.cfg \
+  flock -n /tmp/ansible-pull.lock \
   ansible-pull  \
   --clean \
   --purge \

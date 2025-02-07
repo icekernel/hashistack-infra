@@ -61,6 +61,13 @@ module "nginx" {
   environment     = var.WORKSPACE
 }
 
+module "provisioner" {
+  source          = "../modules/provisioner"
+  src_path        = "../src/provisioner"
+  lambda_function = "provisioner"
+  env             = var.WORKSPACE
+}
+
 # module "docker" {
 #   source          = "../modules/docker"
 #   vpc_id          = module.vpc.vpc_id

@@ -39,3 +39,31 @@
         minute: '{{ 60 | random(seed=inventory_hostname) }}'
         job: '/home/ubuntu/ansible-pull.sh 2>&1 | systemd-cat -t ansible-pull -p info'
         user: ubuntu
+
+    - name: Create oneshot systemd unit for ansible pull
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ansible-pull.service
+        mode: 0644
+        content: |
+          [Unit]
+          Description=ansible-pull service
+          Requires=network-online.target
+          After=consul.service
+
+          [Service]
+          Type=oneshot
+          ExecStart=/home/ubuntu/ansible-pull.sh
+          User=ubuntu
+          RemainAfterExit=true
+          TimeoutStartSec=0
+
+          [Install]
+          WantedBy=multi-user.target
+      become: true
+
+    - name: Enable ansible-pull service
+      ansible.builtin.systemd:
+        name: ansible-pull
+        enabled: yes
+        daemon_reload: yes
+      become: true

@@ -4,25 +4,20 @@
   become: true
 
   tasks:
-    - name: Remove existing SSH host keys from /etc/ssh
-      ansible.builtin.find:
-        paths: /etc/ssh/
-        patterns: 'ssh_host_*'
-        file_type: file
-      register: ssh_keys
+    # - name: Remove existing SSH host keys from /etc/ssh
+    #   ansible.builtin.find:
+    #     paths: /etc/ssh/
+    #     patterns: 'ssh_host_*'
+    #     file_type: file
+    #   register: ssh_keys
 
-    - name: Delete found SSH host keys
-      ansible.builtin.file:
-        path: '{{ item.path }}'
-        state: absent
-      loop: '{{ ssh_keys.files }}'
-      when: ssh_keys.matched > 0
+    # - name: Delete found SSH host keys
+    #   ansible.builtin.file:
+    #     path: '{{ item.path }}'
+    #     state: absent
+    #   loop: '{{ ssh_keys.files }}'
+    #   when: ssh_keys.matched > 0
 
     - name: Clean cloud-init state to allow regeneration of SSH host keys
-      ansible.builtin.command: cloud-init clean --logs
+      ansible.builtin.command: cloud-init clean --logs --reboot
       changed_when: true
-
-    - name: (Optional) Reboot the instance for cloud-init to run on next boot
-      ansible.builtin.reboot:
-        msg: 'Rebooting to regenerate SSH host keys via cloud-init'
-      when: restart | default(true)

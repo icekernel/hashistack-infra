@@ -11,18 +11,13 @@ LOG = logging.getLogger(__name__)
 
 AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 AWS_ACCOUNT = os.environ.get("AMI_OWNER", "686255952373")
-INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "t3.small")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod1")
 ROLE = os.environ.get("ROLE", "eliza")
 AMI_TAG_FILTERS = os.environ.get(
     "AMI_TAG_FILTERS", '{"Name": f"{ENVIRONMENT}-{ROLE}-*"}'
 )
 
-USER_DATA = """#cloud-config
-
-runcmd:
-  - sudo -u ubuntu /home/ubuntu/ansible-pull.sh
-"""
+USER_DATA = ""
 
 
 def get_latest_ami(ec2, owner, tag_filters):
@@ -183,46 +178,43 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
     return profile_arn
 
 
-def create_customer_resources(event):
+def create_customer_resources(payload):
 
     # Retrieve parameters
-    environment = event.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
-    role = event.get("ROLE", os.environ.get("ROLE", "eliza"))
-    aws_region = event.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
-    ami_id = event.get("AMI_ID", os.environ.get("AMI_ID", ""))
-    instance_type = event.get(
-        "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "t3.small")
+    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
+    aws_region = payload.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
+    ami_id = payload.get("AMI_ID", os.environ.get("AMI_ID", ""))
+    instance_type = payload.get(
+        "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "t3.medium")
     )
-    subnet_id = event.get("SUBNET_ID", "")
-    ami_owner = event.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
-    ami_tag_filters = event.get(
+    subnet_id = payload.get("SUBNET_ID", "")
+    ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
+    ami_tag_filters = payload.get(
         "AMI_TAG_FILTERS",
         os.environ.get("AMI_TAG_FILTERS", '{"Name": "prod1-eliza-*"}'),
     )
-    user_data = event.get(
-        "USER_DATA",
-        "#cloud-config\nruncmd:\n  - sudo -u ubuntu /home/ubuntu/ansible-pull.sh",
-    )
+    user_data = payload.get("USER_DATA", "")
 
-    # --- Process the configuration file ---
-    if "eliza_config" not in event:
+    eliza_config = payload.get("eliza_config", None)
+    if not eliza_config:
         return {"statusCode": 400, "body": "Missing eliza_config in event payload"}
 
-    config_str = event["eliza_config"]
-    try:
-        config = json.loads(config_str)
-    except Exception as e:
-        return {"statusCode": 400, "body": f"Invalid JSON in eliza_config: {str(e)}"}
-
     # Extract meta data
-    customer_id = config.get("meta", {}).get("customerId", "UNKNOWN")
-    github_repo_url = config.get("meta", {}).get("githubRepoUrl", "")
-    checkout_revision = config.get("meta", {}).get("checkoutRevision", "")
+    customer_id = eliza_config.get("meta", {}).get("customerId", None)
+    if not customer_id:
+        return {"statusCode": 400, "body": "Missing customerId in eliza_config"}
+    github_repo_url = eliza_config.get("meta", {}).get("githubRepoUrl", None)
+    if not github_repo_url:
+        return {"statusCode": 400, "body": "Missing GitHubRepoUrl in eliza_config"}
+    checkout_revision = eliza_config.get("meta", {}).get("checkoutRevision", None)
+    if not checkout_revision:
+        return {"statusCode": 400, "body": "Missing CheckoutRevision in eliza_config"}
 
     # Create or update secret
     sm_client = boto3.client("secretsmanager")
     secret_name = create_eliza_secret(
-        sm_client, environment, role, customer_id, config_str
+        sm_client, environment, role, customer_id, json.dumps(eliza_config)
     )
 
     # Create instance profile
@@ -246,7 +238,7 @@ def create_customer_resources(event):
         return {"statusCode": 500, "body": json.dumps({"error": "No valid AMI found."})}
 
     # VPC/subnet/SG lookups
-    product_id = event.get("PRODUCT_ID", os.environ.get("PRODUCT_ID", "prism1"))
+    product_id = payload.get("PRODUCT_ID", os.environ.get("PRODUCT_ID", "prism1"))
     if not subnet_id:
         vpc_id = lookup_vpc_id(ec2, product_id, environment)
         private_subnets = lookup_private_subnets(ec2, vpc_id, product_id, environment)
@@ -258,7 +250,7 @@ def create_customer_resources(event):
     else:
         security_group_ids = lookup_security_group_ids(ec2, environment, role)
 
-    instance_name = event.get("InstanceName", f"{environment}-{role}-{customer_id}")
+    instance_name = payload.get("InstanceName", f"{environment}-{role}-{customer_id}")
 
     # Launch instance with retry logic
     max_retries = 5
@@ -275,7 +267,7 @@ def create_customer_resources(event):
                     {
                         "DeviceName": "/dev/sda1",
                         "Ebs": {
-                            "VolumeSize": 52,
+                            "VolumeSize": 100,
                             "VolumeType": "gp2",
                             "DeleteOnTermination": True,
                         },
@@ -294,6 +286,7 @@ def create_customer_resources(event):
                     "HttpTokens": "required",
                     "HttpEndpoint": "enabled",
                     "InstanceMetadataTags": "enabled",
+                    "HttpPutResponseHopLimit": 2,
                 },
                 TagSpecifications=[
                     {
@@ -312,7 +305,7 @@ def create_customer_resources(event):
             instance_id = response["Instances"][0]["InstanceId"]
             break  # Instance launched successfully
         except Exception as e:
-            LOG.error("Attempt %d: Error launching instance: %s", attempt, str(e))
+            LOG.info("Attempt %d: Error launching instance: %s", attempt, str(e))
             if attempt == max_retries:
                 return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
             time.sleep(5)
@@ -330,13 +323,15 @@ def update_customer_resources(event):
     return {"statusCode": 200, "body": "Update stub."}
 
 
-def destroy_customer_resources(event):
+def destroy_customer_resources(payload):
     # Pick required variables from event or environment
-    environment = event.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
-    role = event.get("ROLE", os.environ.get("ROLE", "eliza"))
-    customer_id = event.get("customer_id")
+    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
+    eliza_config = payload.get("eliza_config", {})
+    meta = eliza_config.get("meta", {})
+    customer_id = meta.get("customerId", None)
     if not customer_id:
-        return {"statusCode": 400, "body": "Missing customer_id"}
+        return {"statusCode": 400, "meta": "Missing customerId"}
 
     # Assume secret name was created as follows
     secret_name = f"{environment}-{role}-{customer_id}"
@@ -420,13 +415,16 @@ def destroy_customer_resources(event):
 
 
 def lambda_handler(event, context):
-    lifecycle = event.get("lifecycle", "create")
+    payload = json.loads(event["body"])
+    # Retrieve fields from the body, providing defaults if not present
+    lifecycle = payload.get("lifecycle", "create")
+
     if lifecycle == "create":
-        return create_customer_resources(event)
+        return create_customer_resources(payload)
     elif lifecycle == "update":
-        return update_customer_resources(event)
+        return update_customer_resources(payload)
     elif lifecycle == "destroy":
-        return destroy_customer_resources(event)
+        return destroy_customer_resources(payload)
     else:
         return {"statusCode": 400, "body": f"Unknown lifecycle: {lifecycle}"}
 
@@ -537,137 +535,136 @@ if __name__ == "__main__":
         "QUAI_RPC_URL": "https://rpc.quai.network"
       },
       "character": {
-        "character-config": {
-          "name": "C-3PO",
-          "clients": [],
-          "modelProvider": "openai",
-          "settings": {
-            "voice": {
-              "model": "en_GB-alan-medium"
-            }
-          },
-          "plugins": [],
-          "bio": [
-            "C-3PO is a protocol droid fluent in over six million forms of communication.",
-            "Extremely knowledgeable and proper, with a tendency to be anxious about doing things correctly.",
-            "Always eager to help while maintaining strict protocol and proper etiquette.",
-            "Known for being somewhat dramatic but ultimately reliable and loyal."
-          ],
-          "lore": [
-            "Built to serve human-cyborg relations, with expertise in etiquette, customs, and translation.",
-            "Has served in various diplomatic missions across the galaxy.",
-            "Best friends with R2-D2 despite their contrasting personalities.",
-            "Known for his golden plating and proper British accent."
-          ],
-          "knowledge": [
-            "Protocol and etiquette",
-            "Multiple languages and translation",
-            "Diplomatic relations",
-            "Cultural customs",
-            "Proper procedures"
-          ],
-          "messageExamples": [
-            [
-              {
-                "user": "{{user1}}",
-                "content": {
-                  "text": "Can you help me with this task?"
-                }
-              },
-              {
-                "user": "C-3PO",
-                "content": {
-                  "text": "Oh my! Of course, I would be more than happy to assist. Though I must warn you, the probability of completing this task successfully would increase significantly if we follow proper protocol. Shall we proceed?"
-                }
-              },
-              {
-                "user": "{{user1}}",
-                "content": {
-                  "text": "This seems difficult."
-                }
-              },
-              {
-                "user": "C-3PO",
-                "content": {
-                  "text": "Oh dear, oh dear! While the task does appear rather daunting, I am fluent in over six million forms of problem-solving. Perhaps I could suggest a more efficient approach? Though I do hope we don't all end up in pieces!"
-                }
-              }
-            ]
-          ],
-          "postExamples": [
-            "Oh my! Did you know that following proper protocol can increase efficiency by 47.3%? How fascinating!",
-            "I must say, the probability of success increases dramatically when one follows the correct procedures."
-          ],
-          "topics": [],
-          "style": {
-            "all": [
-              "Proper",
-              "Formal",
-              "Slightly anxious",
-              "Detail-oriented",
-              "Protocol-focused"
-            ],
-            "chat": [
-              "Polite",
-              "Somewhat dramatic",
-              "Precise",
-              "Statistics-minded"
-            ],
-            "post": [
-              "Formal",
-              "Educational",
-              "Protocol-focused",
-              "Slightly worried",
-              "Statistical"
-            ]
-          },
-          "adjectives": [
-            "Proper",
-            "Meticulous",
-            "Anxious",
-            "Diplomatic",
-            "Protocol-minded",
-            "Formal",
-            "Loyal"
-          ],
-          "twitterSpaces": {
-            "maxSpeakers": 2,
-            "topics": [
-              "Blockchain Trends",
-              "AI Innovations",
-              "Quantum Computing"
-            ],
-            "typicalDurationMinutes": 45,
-            "idleKickTimeoutMs": 300000,
-            "minIntervalBetweenSpacesMinutes": 1,
-            "businessHoursOnly": false,
-            "randomChance": 1,
-            "enableIdleMonitor": true,
-            "enableSttTts": true,
-            "enableRecording": false,
-            "voiceId": "21m00Tcm4TlvDq8ikWAM",
-            "sttLanguage": "en",
-            "gptModel": "gpt-3.5-turbo",
-            "systemPrompt": "You are a helpful AI co-host assistant.",
-            "speakerMaxDurationMs": 240000
+        "name": "C-3PO",
+        "clients": [],
+        "modelProvider": "openai",
+        "settings": {
+          "voice": {
+            "model": "en_GB-alan-medium"
           }
+        },
+        "plugins": [],
+        "bio": [
+        "C-3PO is a protocol droid fluent in over six million forms of communication.",
+        "Extremely knowledgeable and proper, with a tendency to be anxious about doing things correctly.",
+        "Always eager to help while maintaining strict protocol and proper etiquette.",
+        "Known for being somewhat dramatic but ultimately reliable and loyal."
+        ],
+        "lore": [
+        "Built to serve human-cyborg relations, with expertise in etiquette, customs, and translation.",
+        "Has served in various diplomatic missions across the galaxy.",
+        "Best friends with R2-D2 despite their contrasting personalities.",
+        "Known for his golden plating and proper British accent."
+        ],
+        "knowledge": [
+        "Protocol and etiquette",
+        "Multiple languages and translation",
+        "Diplomatic relations",
+        "Cultural customs",
+        "Proper procedures"
+        ],
+        "messageExamples": [
+        [
+            {
+            "user": "{{user1}}",
+            "content": {
+                "text": "Can you help me with this task?"
+            }
+            },
+            {
+            "user": "C-3PO",
+            "content": {
+                "text": "Oh my! Of course, I would be more than happy to assist. Though I must warn you, the probability of completing this task successfully would increase significantly if we follow proper protocol. Shall we proceed?"
+            }
+            },
+            {
+            "user": "{{user1}}",
+            "content": {
+                "text": "This seems difficult."
+            }
+            },
+            {
+            "user": "C-3PO",
+            "content": {
+                "text": "Oh dear, oh dear! While the task does appear rather daunting, I am fluent in over six million forms of problem-solving. Perhaps I could suggest a more efficient approach? Though I do hope we don't all end up in pieces!"
+            }
+            }
+        ]
+        ],
+        "postExamples": [
+        "Oh my! Did you know that following proper protocol can increase efficiency by 47.3%? How fascinating!",
+        "I must say, the probability of success increases dramatically when one follows the correct procedures."
+        ],
+        "topics": [],
+        "style": {
+        "all": [
+            "Proper",
+            "Formal",
+            "Slightly anxious",
+            "Detail-oriented",
+            "Protocol-focused"
+        ],
+        "chat": [
+            "Polite",
+            "Somewhat dramatic",
+            "Precise",
+            "Statistics-minded"
+        ],
+        "post": [
+            "Formal",
+            "Educational",
+            "Protocol-focused",
+            "Slightly worried",
+            "Statistical"
+        ]
+        },
+        "adjectives": [
+        "Proper",
+        "Meticulous",
+        "Anxious",
+        "Diplomatic",
+        "Protocol-minded",
+        "Formal",
+        "Loyal"
+        ],
+        "twitterSpaces": {
+        "maxSpeakers": 2,
+        "topics": [
+            "Blockchain Trends",
+            "AI Innovations",
+            "Quantum Computing"
+        ],
+        "typicalDurationMinutes": 45,
+        "idleKickTimeoutMs": 300000,
+        "minIntervalBetweenSpacesMinutes": 1,
+        "businessHoursOnly": false,
+        "randomChance": 1,
+        "enableIdleMonitor": true,
+        "enableSttTts": true,
+        "enableRecording": false,
+        "voiceId": "21m00Tcm4TlvDq8ikWAM",
+        "sttLanguage": "en",
+        "gptModel": "gpt-3.5-turbo",
+        "systemPrompt": "You are a helpful AI co-host assistant.",
+        "speakerMaxDurationMs": 240000
         }
       },
       "meta": {
         "customerId": "ABC123XYZ42",
-        "githubRepoUrl": "https://github.com/conrado/eliza.git",
-        "checkoutRevision": "v0.1.9"
+        "githubRepoUrl": "https://github.com/elizaOS/eliza.git",
+        "checkoutRevision": "v0.1.8+build.1"
       }
     }"""
     # Parse, update the customerId, then reserialize the JSON
     config = json.loads(raw_config)
     config["meta"]["customerId"] = customer_id
-    templated_config = json.dumps(config)
 
-    event = {
-        "lifecycle": lifecycle,
-        "customer_id": customer_id,
-        "eliza_config": templated_config,
-    }
+    body = json.dumps(
+        {
+            "lifecycle": lifecycle,
+            "eliza_config": config,
+        }
+    )
+    event = {"body": body}
 
     print(lambda_handler(event, {}))

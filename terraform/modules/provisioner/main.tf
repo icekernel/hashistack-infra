@@ -16,7 +16,7 @@ variable "lambda_function" {
   type = string
 }
 variable "python_version" {
-  default = "3.9"
+  default = "3.12"
   description = "Python version to use for the Lambda function."
 }
 variable "EXTRA_ENV_VARS" {

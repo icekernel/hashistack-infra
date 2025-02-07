@@ -12,7 +12,13 @@ fi
 
 cd $(dirname $0)/../plays/base/files/nomad/
 
-cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare $ENV-ca
+rm -f $ENV-*
+
+# cfssl print-defaults csr | cfssl gencert -initca - | cfssljson -bare $ENV-ca
 
 #../../../../bin/rotate-nomad-certs.sh $ENV
 
+nomad tls ca create
+
+mv nomad-agent-ca-key.pem $ENV-ca-key.pem
+mv nomad-agent-ca.pem $ENV-ca.pem

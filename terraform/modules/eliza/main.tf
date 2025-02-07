@@ -60,183 +60,182 @@ resource "aws_security_group" "eliza" {
   }
 }
 
-data "template_file" "cloud_config_eliza" {
-  template = file("${path.root}/../templates/cloud-config.tpl")
-  vars = {
-    ROLE        = local.role
-    ENVIRONMENT = var.environment
-  }
-}
+# data "template_file" "cloud_config_eliza" {
+#   template = file("${path.root}/../templates/cloud-config.tpl")
+#   vars = {
+#     ROLE        = local.role
+#     ENVIRONMENT = var.environment
+#   }
+# }
 
-module "acm" {
-  source  = "terraform-aws-modules/acm/aws"
-  version = "~> 4.0.1"
+# module "acm" {
+#   source  = "terraform-aws-modules/acm/aws"
+#   version = "~> 4.0.1"
 
-  domain_name = "${local.instance_name}.${var.domain}"
-  zone_id     = data.aws_route53_zone.zone.id
+#   domain_name = "${local.instance_name}.${var.domain}"
+#   zone_id     = data.aws_route53_zone.zone.id
 
-  wait_for_validation = true
+#   wait_for_validation = true
 
-  subject_alternative_names = [
-    "*.${var.domain}",
-  ]
+#   subject_alternative_names = [
+#     "*.${var.domain}",
+#   ]
 
-  tags = {
-    Name = "${local.instance_name}.${var.domain}"
-  }
+#   tags = {
+#     Name = "${local.instance_name}.${var.domain}"
+#   }
+# }
 
-}
+# module "asg" {
+#   source  = "terraform-aws-modules/autoscaling/aws"
+#   version = "~> 6.5.1"
 
-module "asg" {
-  source  = "terraform-aws-modules/autoscaling/aws"
-  version = "~> 6.5.1"
+#   # Autoscaling group
+#   name = local.instance_name
 
-  # Autoscaling group
-  name = local.instance_name
+#   security_groups = [
+#     aws_security_group.eliza.id,
+#     var.consul_sg,
+#     var.nomad_sg,
+#   ]
 
-  security_groups = [
-    aws_security_group.eliza.id,
-    var.consul_sg,
-    var.nomad_sg,
-  ]
+#   min_size                  = 1
+#   max_size                  = 3
+#   desired_capacity          = 1
+#   wait_for_capacity_timeout = 0
 
-  min_size                  = 1
-  max_size                  = 3
-  desired_capacity          = 1
-  wait_for_capacity_timeout = 0
+#   # disabled health_check_type because we are not in high-availability mode yet
+#   # health_check_type         = "ELB"
 
-  # disabled health_check_type because we are not in high-availability mode yet
-  # health_check_type         = "ELB"
+#   vpc_zone_identifier = var.private_subnets
 
-  vpc_zone_identifier = var.private_subnets
+#   # Launch template
+#   launch_template_name        = local.instance_name
+#   launch_template_description = "eliza launch template"
+#   update_default_version      = true
+#   # launch_template = aws_launch_template.this.name
 
-  # Launch template
-  launch_template_name        = local.instance_name
-  launch_template_description = "eliza launch template"
-  update_default_version      = true
-  # launch_template = aws_launch_template.this.name
+#   image_id      = data.aws_ami.eliza.id
+#   instance_type = var.instance_type
+#   key_name      = var.ssh_key_name
 
-  image_id      = data.aws_ami.eliza.id
-  instance_type = var.instance_type
-  key_name      = var.ssh_key_name
+#   # ebs_optimized = true   # if high disk read/write needs, set true
 
-  # ebs_optimized = true   # if high disk read/write needs, set true
+#   user_data = base64encode(data.template_file.cloud_config_eliza.rendered)
 
-  user_data = base64encode(data.template_file.cloud_config_eliza.rendered)
+#   # IAM role & instance profile
+#   create_iam_instance_profile = false
+#   iam_instance_profile_arn    = var.iam_profile
 
-  # IAM role & instance profile
-  create_iam_instance_profile = false
-  iam_instance_profile_arn    = var.iam_profile
+#   target_group_arns = module.alb.target_group_arns
 
-  target_group_arns = module.alb.target_group_arns
+#   instance_refresh = {}
 
-  instance_refresh = {}
+#   block_device_mappings = [
+#     {
+#       device_name = "/dev/sda1"
+#       ebs = {
+#         delete_on_termination = true
+#         volume_size           = 52
+#       }
+#     }
+#   ]
 
-  block_device_mappings = [
-    {
-      device_name = "/dev/sda1"
-      ebs = {
-        delete_on_termination = true
-        volume_size           = 52
-      }
-    }
-  ]
+#   metadata_options = {
+#     http_endpoint               = "enabled"
+#     http_put_response_hop_limit = 2
+#     instance_metadata_tags      = "enabled"
+#   }
 
-  metadata_options = {
-    http_endpoint               = "enabled"
-    http_put_response_hop_limit = 2
-    instance_metadata_tags      = "enabled"
-  }
+#   tag_specifications = [
+#     {
+#       resource_type = "instance"
+#       tags          = { WhatAmI = "Instance" }
+#     },
+#     {
+#       resource_type = "volume"
+#       tags          = { WhatAmI = "Volume" }
+#     }
+#   ]
 
-  tag_specifications = [
-    {
-      resource_type = "instance"
-      tags          = { WhatAmI = "Instance" }
-    },
-    {
-      resource_type = "volume"
-      tags          = { WhatAmI = "Volume" }
-    }
-  ]
+#   tags = {
+#     Environment = var.environment
+#     Role        = local.role
+#     Terraform   = "Use-Prism/eliza-infra"
+#   }
+# }
 
-  tags = {
-    Environment = var.environment
-    Role        = local.role
-    Terraform   = "Use-Prism/eliza-infra"
-  }
-}
+# module "alb" {
+#   source  = "terraform-aws-modules/alb/aws"
+#   version = "~> 7.0"
 
-module "alb" {
-  source  = "terraform-aws-modules/alb/aws"
-  version = "~> 7.0"
+#   name = local.instance_name
 
-  name = local.instance_name
+#   load_balancer_type = "application"
 
-  load_balancer_type = "application"
+#   vpc_id  = var.vpc_id
+#   subnets = var.public_subnets
+#   security_groups = [
+#     aws_security_group.eliza.id,
+#   ]
 
-  vpc_id  = var.vpc_id
-  subnets = var.public_subnets
-  security_groups = [
-    aws_security_group.eliza.id,
-  ]
+#   https_listeners = [
+#     {
+#       port               = 443
+#       protocol           = "HTTPS"
+#       certificate_arn    = module.acm.acm_certificate_arn
+#       target_group_index = 0
+#     }
+#   ]
 
-  https_listeners = [
-    {
-      port               = 443
-      protocol           = "HTTPS"
-      certificate_arn    = module.acm.acm_certificate_arn
-      target_group_index = 0
-    }
-  ]
+#   target_groups = [
+#     {
+#       name             = local.instance_name
+#       backend_protocol = "HTTP"
+#       backend_port     = 3000
+#       target_type      = "instance"
+#       health_check = {
+#         path                = "/"
+#         interval            = 10
+#         timeout             = 5
+#         healthy_threshold   = 2
+#         unhealthy_threshold = 2
+#       }
+#     }
+#   ]
 
-  target_groups = [
-    {
-      name             = local.instance_name
-      backend_protocol = "HTTP"
-      backend_port     = 3000
-      target_type      = "instance"
-      health_check = {
-        path                = "/"
-        interval            = 10
-        timeout             = 5
-        healthy_threshold   = 2
-        unhealthy_threshold = 2
-      }
-    }
-  ]
+#   # access_logs = {
+#   #   bucket = "${var.logs_bucket}"
+#   # }
 
-  # access_logs = {
-  #   bucket = "${var.logs_bucket}"
-  # }
+#   tags = {
+#     Environment = var.environment
+#     Role        = local.role
+#     Terraform   = "Use-Prism/eliza-infra"
+#   }
+# }
 
-  tags = {
-    Environment = var.environment
-    Role        = local.role
-    Terraform   = "Use-Prism/eliza-infra"
-  }
-}
+# resource "aws_route53_record" "eliza_live" {
+#   zone_id = var.route53_zone_id
+#   name    = local.instance_name
+#   type    = "A"
+#   alias {
+#     name                   = module.alb.lb_dns_name
+#     zone_id                = module.alb.lb_zone_id
+#     evaluate_target_health = true
+#   }
+# }
 
-resource "aws_route53_record" "eliza_live" {
-  zone_id = var.route53_zone_id
-  name    = local.instance_name
-  type    = "A"
-  alias {
-    name                   = module.alb.lb_dns_name
-    zone_id                = module.alb.lb_zone_id
-    evaluate_target_health = true
-  }
-}
-
-resource "aws_route53_record" "eliza_env" {
-  zone_id = var.route53_zone_id
-  name    = "env-${var.environment}-eliza.${var.domain}"
-  type    = "A"
-  alias {
-    name                   = module.alb.lb_dns_name
-    zone_id                = module.alb.lb_zone_id
-    evaluate_target_health = true
-  }
-}
+# resource "aws_route53_record" "eliza_env" {
+#   zone_id = var.route53_zone_id
+#   name    = "env-${var.environment}-eliza.${var.domain}"
+#   type    = "A"
+#   alias {
+#     name                   = module.alb.lb_dns_name
+#     zone_id                = module.alb.lb_zone_id
+#     evaluate_target_health = true
+#   }
+# }
 
 # resource "aws_launch_template" "this" {
 #   name_prefix   = "${local.instance_name}-"
