@@ -49,15 +49,6 @@
     jq -r 'to_entries | .[] | .key + "=" + .value' /home/eliza/eliza.env.json > /home/eliza/eliza.env
   become: true
 
-  # vars:
-
-  #   git_repo: 'git@github.com:Use-Prism/{{ role }}.git'
-  #   srv_base_dir: /srv/{{ role }}
-  #   git_repo_dest: '{{ srv_base_dir }}/{{ role }}.git'
-  #   checkout_dest: '{{ srv_base_dir }}/{{ role }}'
-  #   owner: '{{ role }}'
-  #   group: '{{ role }}'
-
 - name: Set github_repo from the instance metadata
   set_fact:
     github_repo: '{{ my_instance_tags.GitHubRepoUrl }}'
@@ -76,3 +67,4 @@
     accept_hostkey: true
     # key_file: '{{ key_file }}'
   become: true
+  become_user: '{{ role }}'

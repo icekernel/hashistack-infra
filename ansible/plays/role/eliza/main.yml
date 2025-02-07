@@ -23,7 +23,9 @@
     - ansible.builtin.import_tasks:
         file: ./tasks/install-node.yml
 
-    - name: Clone service's git repository
-      ansible.builtin.import_tasks: ./tasks/clone-repository.yml
+    # we're now building custom repositories in the pull service
 
-    - import_tasks: ./tasks/setup-eliza.yml
+    # - name: Clone service's git repository
+    #   ansible.builtin.import_tasks: ./tasks/clone-repository.yml
+
+    # - import_tasks: ./tasks/setup-eliza.yml
