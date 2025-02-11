@@ -22,6 +22,15 @@
         - jq
         - acl
 
+    - name: base pip requirements for ansible push
+      ansible.builtin.pip:
+        name: '{{ item }}'
+        state: present
+      become: true
+      with_items:
+        - boto3
+        - python-consul
+
     - name: append ssh key on ubuntu user's authorized_keys
       ansible.builtin.lineinfile:
         dest: /home/ubuntu/.ssh/authorized_keys
