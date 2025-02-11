@@ -115,22 +115,7 @@
   become: true
   become_user: '{{ role }}'
 
-- name: Retrieve existing nginx upstreams from consul
-  ansible.builtin.command: consul kv get nginx/upstreams
-  become: true
-  register: consul_upstreams
-  changed_when: false
-  ignore_errors: true
-
-- name: Set fact for current upstreams (default to empty list)
-  ansible.builtin.set_fact:
-    upstreams: "{{ consul_upstreams.stdout | default('[]') | from_json }}"
-
-- name: Append current instance to upstreams
-  ansible.builtin.set_fact:
-    updated_upstreams: "{{ upstreams + [ {'id': customer_id, 'address': ansible_default_ipv4.address ~ ':3000'} ] }}"
-
-- name: Update consul kv with new upstreams
-  ansible.builtin.command: consul kv put nginx/upstreams '{{ updated_upstreams | to_json }}'
-  become: true
-  become_user: '{{ role }}'
+- name: Add eliza upstream to consul kv store
+  community.general.consul_kv:
+    key: eliza/agents/{{ customer_id }}
+    value: '{{ ansible_default_ipv4.address }}:3000'

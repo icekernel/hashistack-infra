@@ -2,15 +2,15 @@ server {
 
     client_max_body_size 100M;
 
-    {{ range $idx, $upstream := key "nginx/upstreams" | parseJSON }}
-    location /{{ $upstream.id }} {
-        proxy_pass http://{{ $upstream.address }}/;
+{{ range $customer, $upstream := tree "eliza/agents/" | explode }}
+    location /{{ $customer }}/ {
+        proxy_pass http://{{ $upstream }}:3000/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
     }
+{{ end }}
 
-    {{ end }}
 }
