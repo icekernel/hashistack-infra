@@ -1,4 +1,11 @@
 ---
+- name: Install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+
 - name: Gather instance tags into a dictionary
   set_fact:
     my_instance_tags: '{{ my_instance_tags | default({}) | combine({tag_key: item.value}) }}'

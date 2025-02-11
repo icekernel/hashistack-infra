@@ -12,6 +12,22 @@
     - set_fact:
         role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
 
+    # 0 - run once
+
+    - name: Check for one‑time run flag
+      ansible.builtin.stat:
+        path: /tmp/ansible_pull_once.flag
+      register: run_once_flag
+
+    - import_tasks: ./tasks/pull-once.yml
+      when: not run_once_flag.stat.exists
+
+    - name: Create one‑time run flag
+      ansible.builtin.copy:
+        content: 'Ran on {{ ansible_date_time.iso8601 }}'
+        dest: /tmp/ansible_pull_once.flag
+      when: not run_once_flag.stat.exists
+
     # 1 - always run
 
     - import_tasks: ./tasks/user-accounts.yml
@@ -29,16 +45,16 @@
 
     # 3 - run once
 
-    - name: Check for one‑time run flag
+    - name: Check for eliza one‑time run flag
       ansible.builtin.stat:
-        path: /tmp/ansible_pull_once.flag
+        path: /tmp/ansible_pull_once_eliza.flag
       register: run_once_flag
 
     - import_tasks: ./tasks/pull-eliza-once.yml
       when: role == 'eliza' and not run_once_flag.stat.exists
 
-    - name: Create one‑time run flag
+    - name: Create eliza one‑time run flag
       ansible.builtin.copy:
         content: 'Ran on {{ ansible_date_time.iso8601 }}'
-        dest: /tmp/ansible_pull_once.flag
+        dest: /tmp/ansible_pull_once_eliza.flag
       when: not run_once_flag.stat.exists

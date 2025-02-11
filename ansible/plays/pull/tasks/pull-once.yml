@@ -1,0 +1,20 @@
+---
+- name: Remove existing SSH host keys
+  ansible.builtin.file:
+    state: absent
+    path: '{{ item }}'
+  loop:
+    - /etc/ssh/ssh_host_rsa_key
+    - /etc/ssh/ssh_host_rsa_key.pub
+    - /etc/ssh/ssh_host_dsa_key
+    - /etc/ssh/ssh_host_dsa_key.pub
+    - /etc/ssh/ssh_host_ecdsa_key
+    - /etc/ssh/ssh_host_ecdsa_key.pub
+    - /etc/ssh/ssh_host_ed25519_key
+    - /etc/ssh/ssh_host_ed25519_key.pub
+  become: true
+
+- name: Re-generate SSH host keys using dpkg-reconfigure
+  ansible.builtin.shell: dpkg-reconfigure openssh-server
+  register: reconfigure_result
+  become: true

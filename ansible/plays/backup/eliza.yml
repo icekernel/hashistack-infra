@@ -1,0 +1,45 @@
+---
+- name: backup eliza
+  hosts: eliza
+
+  vars:
+    aws_account: '686255952373'
+    env: 'prod1'
+    role: 'eliza'
+    s3_bucket: '{{ aws_account }}-eliza-agents'
+
+  tasks:
+    - name: Read meta.json from remote
+      ansible.builtin.slurp:
+        src: /home/eliza/meta.json
+      register: customer_meta
+      become: true
+
+    - name: Parse meta.json content and set fact
+      ansible.builtin.set_fact:
+        customer_id: '{{ (customer_meta.content | b64decode | from_json).customerId }}'
+
+    - name: Generate backup filename
+      ansible.builtin.set_fact:
+        backup_file: '/tmp/{{ customer_id }}-{{ ansible_date_time.date }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}{{ ansible_date_time.second }}.db'
+
+    - name: Run sqlite3 hot-backup command
+      ansible.builtin.shell: |
+        sqlite3 /home/eliza/agent_data/db.sqlite ".backup {{ backup_file }}"
+      register: backup_result
+      become: true
+
+    - name: Upload backup file to S3
+      amazon.aws.aws_s3:
+        bucket: '{{ s3_bucket }}'
+        object: '{{ env }}-{{role}}-{{customer_id}}/{{ backup_file | basename }}'
+        src: '{{ backup_file }}'
+        mode: put
+        permission: []
+      become: true
+
+    - name: Delete the backup file
+      ansible.builtin.file:
+        src: '{{ backup_file }}'
+        state: absent
+      become: true

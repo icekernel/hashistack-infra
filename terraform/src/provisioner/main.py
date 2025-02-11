@@ -131,6 +131,29 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
                 "Action": ["cloudwatch:PutMetricData"],
                 "Resource": "*",
             },
+            {
+                "Sid": "ElizaAgentsFolderAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "s3:*",
+                ],
+                "Resource": [
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/{role_name}",
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/{role_name}/*"
+                ]
+            },
+            {
+                "Sid": "ElizaAgentsBucketAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket"
+                ],
+                "Resource": [
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents",
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/*"
+                ]
+            },
         ],
     }
     iam_client.put_role_policy(

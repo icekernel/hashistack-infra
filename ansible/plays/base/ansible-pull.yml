@@ -25,6 +25,7 @@
       with_items:
         - ansible
         - boto3
+        - python-consul
       become: true
 
     - name: Template ansible-pull.sh
