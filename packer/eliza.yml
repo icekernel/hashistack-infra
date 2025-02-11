@@ -15,6 +15,3 @@
 
 - name: configure eliza role
   ansible.builtin.import_playbook: ../ansible/plays/role/eliza/main.yml
-
-- name: cleanup instance for AMI snapshot
-  ansible.builtin.import_playbook: ../ansible/plays/cleanup/main.yml

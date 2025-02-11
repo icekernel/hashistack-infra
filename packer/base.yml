@@ -6,6 +6,3 @@
 
 - name: configure ansible-pull
   ansible.builtin.import_playbook: ../ansible/plays/base/ansible-pull.yml
-
-- name: cleanup instance for AMI snapshot
-  ansible.builtin.import_playbook: ../ansible/plays/cleanup/main.yml

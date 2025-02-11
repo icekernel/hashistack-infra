@@ -12,6 +12,3 @@
 
 - name: configure bastion role
   ansible.builtin.import_playbook: ../ansible/plays/role/bastion/main.yml
-
-- name: cleanup instance for AMI snapshot
-  ansible.builtin.import_playbook: ../ansible/plays/cleanup/main.yml

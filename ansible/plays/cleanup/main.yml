@@ -1,9 +1,0 @@
----
-- name: Cleanup instance for AMI snapshot
-  hosts: all
-  become: true
-
-  tasks:
-    - name: Debug role
-      ansible.builtin.debug:
-        msg: '{{ role }}'

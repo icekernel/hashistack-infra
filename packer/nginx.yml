@@ -15,6 +15,3 @@
 
 - name: configure nginx role
   ansible.builtin.import_playbook: ../ansible/plays/role/nginx/main.yml
-
-- name: cleanup instance for AMI snapshot
-  ansible.builtin.import_playbook: ../ansible/plays/cleanup/main.yml
