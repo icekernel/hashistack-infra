@@ -4,7 +4,7 @@ server {
 
 {{ range $customer, $upstream := tree "eliza/agents/" | explode }}
     location /{{ $customer }}/ {
-        proxy_pass http://{{ $upstream }}:3000/;
+        proxy_pass http://{{ $upstream }}/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

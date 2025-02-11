@@ -6,15 +6,6 @@
     cache_valid_time: 3600
   become: true
 
-# - name: Install nginx proxy config
-#   ansible.builtin.template:
-#     src: '../templates/nginx-proxy.j2'
-#     dest: '/etc/nginx/sites-available/default'
-#     owner: root
-#     group: root
-#     mode: 0644
-#   become: true
-
 - name: Ensure nginx starts after consul
   ansible.builtin.lineinfile:
     path: /lib/systemd/system/nginx.service
@@ -71,23 +62,9 @@
       WantedBy=multi-user.target
   become: true
 
-- name: Enable and start consul-template
+- name: Enable consul-template
   ansible.builtin.systemd:
     name: consul-template
     daemon_reload: true
     enabled: true
-    state: started
-  become: true
-
-- name: Start consul-template
-  ansible.builtin.systemd:
-    name: consul-template
-    state: started
-    enabled: true
-  become: true
-
-- name: Reload nginx
-  ansible.builtin.systemd:
-    name: nginx
-    state: reloaded
   become: true
