@@ -91,3 +91,22 @@
         src: ./templates/docker-daemon.json.j2
         dest: /etc/docker/daemon.json
       become: true
+
+- name: install ssm action scripts on eliza nodes
+  hosts: eliza
+
+  tasks:
+    - name: ensure /opt/actions directory
+      ansible.builtin.file:
+        path: /opt/actions
+        state: directory
+      become: true
+
+    - name: template ssm action scripts
+      ansible.builtin.template:
+        dest: '/opt/actions/{{ item }}'
+        src: './templates/eliza/actions/{{ item }}.j2'
+        mode: 0755
+      become: true
+      loop:
+        - eliza-reconfigure-pull.sh

@@ -1,5 +1,5 @@
 - name: Install service based on instance role
-  hosts: eliza
+  hosts: all
 
   vars:
     role: eliza
@@ -19,7 +19,7 @@
     - set_fact:
         role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
 
-    - import_tasks: ../../pull/tasks/eliza-set-facts.yml
+    - import_tasks: ./tasks/eliza-set-facts.yml
 
     - name: Remove eliza upstream from consul kv store
       community.general.consul_kv:
@@ -33,4 +33,4 @@
         chdir: /home/eliza
       become: true
 
-    - import_tasks: ../../pull/tasks/pull-eliza-once.yml
+    - import_tasks: ./tasks/pull-eliza-once.yml

@@ -143,20 +143,17 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
                 ],
                 "Resource": [
                     f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/{role_name}",
-                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/{role_name}/*"
-                ]
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/{role_name}/*",
+                ],
             },
             {
                 "Sid": "ElizaAgentsBucketAccess",
                 "Effect": "Allow",
-                "Action": [
-                    "s3:GetBucketLocation",
-                    "s3:ListBucket"
-                ],
+                "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
                 "Resource": [
                     f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents",
-                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/*"
-                ]
+                    f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/*",
+                ],
             },
         ],
     }
@@ -345,9 +342,75 @@ def create_customer_resources(payload):
     }
 
 
-def update_customer_resources(event):
-    # TODO: Implement update logic
-    return {"statusCode": 200, "body": "Update stub."}
+def update_customer_resources(payload):
+    # Extract relevant data from the event
+    try:
+        environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+        role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
+        eliza_config = payload.get("eliza_config", None)
+        if not eliza_config:
+            return {"statusCode": 400, "body": "Missing eliza_config in event payload"}
+
+        # Extract meta data
+        customer_id = eliza_config.get("meta", {}).get("customerId", None)
+    except (KeyError, json.JSONDecodeError) as e:
+        return {
+            "statusCode": 400,
+            "body": json.dumps(f"Error: Missing or invalid event data: {str(e)}"),
+        }
+
+    # Find the instance ID based on the customer ID
+    ec2_client = boto3.client("ec2")
+    try:
+        response = ec2_client.describe_instances(
+            Filters=[
+                {"Name": "tag:CustomerId", "Values": [customer_id]},
+                {"Name": "tag:Environment", "Values": [environment]},
+                {"Name": "tag:Role", "Values": [role]},
+            ]
+        )
+        instances = [
+            instance
+            for reservation in response["Reservations"]
+            for instance in reservation["Instances"]
+        ]
+        if not instances:
+            return {
+                "statusCode": 404,
+                "body": json.dumps(
+                    f"Error: No instance found with customerId {customer_id}"
+                ),
+            }
+        instance_id = instances[0]["InstanceId"]
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps(f"Error describing instances: {str(e)}"),
+        }
+
+    # Construct the SSM command
+    ssm_client = boto3.client("ssm")
+    try:
+        response = ssm_client.send_command(
+            InstanceIds=[instance_id],
+            DocumentName="AWS-RunShellScript",
+            Parameters={
+                "commands": ["sudo -u ubuntu /opt/actions/eliza-reconfigure-pull.sh"]
+            },
+        )
+        command_id = response["Command"]["CommandId"]
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                f"Successfully triggered Eliza Reconfigure Pull on {instance_id} with command ID: {command_id}"
+            ),
+        }
+
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps(f"Error triggering Eliza Reconfigure Pull: {str(e)}"),
+        }
 
 
 def destroy_customer_resources(payload):

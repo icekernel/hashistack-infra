@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -u
+
+. /opt/ansible.venv/bin/activate
+
+ANSIBLE_CONFIG=/home/ubuntu/ansible_pull_repo/ansible/ansible-pull.cfg \
+  flock -n /tmp/ansible-pull.lock \
+  ansible-pull  \
+  --clean \
+  --purge \
+  --url git@github.com:Use-Prism/eliza-infra.git \
+  --checkout {{ ENVIRONMENT }} \
+  --directory /home/ubuntu/ansible_pull_repo \
+  --connection local \
+  --accept-host-key \
+  --private-key /home/ubuntu/.ssh/id_rsa \
+  ansible/plays/pull/eliza-reconfigure.yml
