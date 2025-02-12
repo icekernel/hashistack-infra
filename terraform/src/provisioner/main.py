@@ -78,8 +78,12 @@ def lookup_private_subnets(ec2, vpc_id, product_id, environment):
 def create_eliza_secret(sm_client, environment, role, customer_id, config_data):
     secret_name = f"{environment}-{role}-{customer_id}"
     try:
-        # If the secret already exists, update its value.
-        sm_client.describe_secret(SecretId=secret_name)
+        secret_description = sm_client.describe_secret(SecretId=secret_name)
+        if secret_description.get("DeletedDate"):
+            LOG.info("Secret %s is marked for deletion. Restoring it.", secret_name)
+            sm_client.restore_secret(SecretId=secret_name)
+            # Wait a short time to ensure the restore is processed
+            time.sleep(5)
         sm_client.put_secret_value(SecretId=secret_name, SecretString=config_data)
         LOG.info("Updated secret %s", secret_name)
     except sm_client.exceptions.ResourceNotFoundException:
