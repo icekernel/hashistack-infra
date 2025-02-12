@@ -626,7 +626,9 @@ if __name__ == "__main__":
       },
       "character": {
         "name": "C-3PO",
-        "clients": [],
+        "clients": [
+          "direct"
+        ],
         "modelProvider": "openai",
         "settings": {
           "voice": {

@@ -7,6 +7,7 @@ API_ID="enughwlwtc"
 STAGE="prod1"
 REGION="eu-central-1"
 DATA_TEMPLATE='{
+  "INSTANCE_TYPE": "c5.12xlarge",
   "lifecycle": "create",
   "eliza_config": {
     "env": {
@@ -93,7 +94,9 @@ DATA_TEMPLATE='{
     },
     "character": {
       "name": "C-3PO",
-      "clients": [],
+      "clients": [
+        "direct"
+      ],
       "modelProvider": "openai",
       "settings": {
         "voice": {

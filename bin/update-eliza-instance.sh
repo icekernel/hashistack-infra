@@ -93,7 +93,9 @@ DATA_TEMPLATE='{
     },
     "character": {
       "name": "C-3PO",
-      "clients": [],
+      "clients": [
+        "direct"
+      ],
       "modelProvider": "openai",
       "settings": {
         "voice": {
