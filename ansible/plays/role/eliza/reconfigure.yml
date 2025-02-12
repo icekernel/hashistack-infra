@@ -19,6 +19,14 @@
     - set_fact:
         role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
 
+    - import_tasks: ../../pull/tasks/eliza-set-facts.yml
+
+    - name: Remove eliza upstream from consul kv store
+      community.general.consul_kv:
+        key: eliza/agents/{{ customer_id }}
+        # value: '{{ ansible_default_ipv4.address }}:3000'
+        state: absent
+
     - name: Shut down docker-compose
       ansible.builtin.shell: docker-compose down
       args:

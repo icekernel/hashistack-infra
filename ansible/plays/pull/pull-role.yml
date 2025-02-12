@@ -43,18 +43,21 @@
     - import_tasks: ./tasks/pull-nomad.yml
       when: role == 'bastion'
 
-    # 3 - run once
+    # 3 - run once based on instance role
 
     - name: Check for eliza one‑time run flag
       ansible.builtin.stat:
         path: /tmp/ansible_pull_once_eliza.flag
-      register: run_once_flag
+      register: run_once_flag_eliza
+
+    - import_tasks: ./tasks/eliza-set-facts.yml
+      when: role == 'eliza' and not run_once_flag_eliza.stat.exists
 
     - import_tasks: ./tasks/pull-eliza-once.yml
-      when: role == 'eliza' and not run_once_flag.stat.exists
+      when: role == 'eliza' and not run_once_flag_eliza.stat.exists
 
     - name: Create eliza one‑time run flag
       ansible.builtin.copy:
         content: 'Ran on {{ ansible_date_time.iso8601 }}'
         dest: /tmp/ansible_pull_once_eliza.flag
-      when: not run_once_flag.stat.exists
+      when: not run_once_flag_eliza.stat.exists

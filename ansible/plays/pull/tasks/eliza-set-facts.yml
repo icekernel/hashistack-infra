@@ -1,0 +1,23 @@
+---
+- name: Gather instance tags into a dictionary
+  set_fact:
+    my_instance_tags: '{{ my_instance_tags | default({}) | combine({tag_key: item.value}) }}'
+  loop: "{{ hostvars[inventory_hostname] | dict2items | selectattr('key','match','^ansible_ec2_tags_instance_.*') }}"
+  vars:
+    tag_key: "{{ item.key | regex_replace('^ansible_ec2_tags_instance_','') }}"
+
+- name: Set aws_region from the instance metadata
+  set_fact:
+    aws_region: '{{ meta.ansible_facts.ansible_ec2_placement_region }}'
+
+- name: Set the environment from the instance metadata
+  set_fact:
+    ENVIRONMENT: '{{ my_instance_tags.Environment }}'
+
+- name: Show collected instance tags
+  debug:
+    var: my_instance_tags
+
+- name: Get the customer id from the instance tag
+  set_fact:
+    customer_id: '{{ my_instance_tags.CustomerId }}'
