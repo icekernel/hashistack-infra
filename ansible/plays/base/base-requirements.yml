@@ -1,105 +1,103 @@
 ---
-- name: create swap
+- name: Create swap
   hosts: all
 
   vars:
     swap_space: 4GB
 
   tasks:
-    - import_tasks: ./tasks/swap.yml
+    - name: Import swap creation tasks
+      ansible.builtin.import_tasks: ./tasks/swap.yml
 
-- name: base necessities for all AMIs
+- name: Base necessities for all AMIs
   hosts: all
 
   tasks:
-    - name: install base requirements
+    - name: Install base requirements
       ansible.builtin.apt:
         name: '{{ item }}'
-        update_cache: yes
+        update_cache: true
       become: true
       with_items:
         - awscli
         - jq
         - acl
 
-    - name: base pip requirements for ansible push
-      ansible.builtin.pip:
-        name: '{{ item }}'
-        state: present
-      become: true
-      with_items:
-        - boto3
-        - python-consul
-
-    - name: append ssh key on ubuntu user's authorized_keys
+    - name: Append ssh key on ubuntu user's authorized_keys
       ansible.builtin.lineinfile:
         dest: /home/ubuntu/.ssh/authorized_keys
         line: '{{ lookup("file", "./files/prism-eliza-20250127.pem.pub") }}'
       become: true
 
-    - name: link python to python3
+    - name: Link python to python3
       ansible.builtin.file:
         src: /usr/bin/python3
         dest: /usr/bin/python
         state: link
       become: true
 
-    - name: set role and environment variables in /etc/environment
+    - name: Set role and environment variables in /etc/environment
       ansible.builtin.lineinfile:
         path: /etc/environment
         line: '{{ item }}'
-        create: yes
+        create: true
+        mode: '0644'
       become: true
       with_items:
         - 'ROLE={{ role }}'
         - 'ENVIRONMENT={{ ENVIRONMENT }}'
 
-    - name: place cloud-init set_custom_hostname script
+    - name: Place cloud-init set_custom_hostname script
       ansible.builtin.copy:
         dest: /usr/lib/python3/dist-packages/cloudinit/config/cc_set_custom_hostname.py
-        src: ../files/cc_set_custom_hostname.py
+        src: cc_set_custom_hostname.py
+        mode: '0644'
       become: true
 
-    - name: enable cloud-init set_custom_hostname module in /etc/cloud/cloud.cfg.d
+    - name: Enable cloud-init set_custom_hostname module in /etc/cloud/cloud.cfg.d
       ansible.builtin.copy:
         dest: /etc/cloud/cloud.cfg.d/10-set_custom_hostname.cfg
         content: |
           cloud_init_modules:
             - set_custom_hostname
+        mode: '0644'
       become: true
 
-    - name: download cloudwatch agent
-      shell:
-        cmd: curl -s -o /home/ubuntu/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
-        creates: /home/ubuntu/amazon-cloudwatch-agent.deb
+    - name: Download cloudwatch agent
+      ansible.builtin.get_url:
+        url: https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+        dest: /home/ubuntu/amazon-cloudwatch-agent.deb
+        mode: '0644'
       become: true
 
-    - name: install cloudwatch agent
-      shell:
-        cmd: dpkg -i -E /home/ubuntu/amazon-cloudwatch-agent.deb && echo install_done > amazon-cloudwatch-agent.installed
+    - name: Install cloudwatch agent
+      ansible.builtin.shell:
+        cmd: dpkg -i -E /home/ubuntu/amazon-cloudwatch-agent.deb && echo install_done > /home/ubuntu/amazon-cloudwatch-agent.installed
         creates: /home/ubuntu/amazon-cloudwatch-agent.installed
       become: true
 
-    - name: make cloudwatch agent able to access more logs
+    - name: Make cloudwatch agent able to access more logs
       ansible.builtin.user:
         name: cwagent
         groups: adm,utmp,root,systemd-journal
-        append: yes
+        append: true
       become: true
 
-    - name: install amazon-cloudwatch-agent.json
+    - name: Install amazon-cloudwatch-agent.json
       ansible.builtin.template:
         src: ./templates/amazon-cloudwatch-agent.json.j2
         dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+        mode: '0644'
       become: true
 
-    - name: template config for cwagent syslogs
+    - name: Template config for cwagent syslogs
       ansible.builtin.template:
         src: ./templates/syslog.json.j2
         dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.d/syslog.json
+        mode: '0644'
       become: true
 
-    - name: enable amazon-cloudwatch-agent.service
+    - name: Enable amazon-cloudwatch-agent.service
       ansible.builtin.systemd:
         name: amazon-cloudwatch-agent.service
         enabled: true
