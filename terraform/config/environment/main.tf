@@ -36,4 +36,26 @@ locals {
     prod2   = "eu-central-1"
     global  = "eu-central-1"
   }
+
+  git_repositories = {
+    test1   = {}
+    test2   = {}
+    prod2   = {}
+    prod1   = {
+      "billing" = {
+        description = "Eliza Billing API"
+      }
+      "history" = {
+        description = "Eliza history API"
+      }
+      "proxy" = {
+        description = "Eliza proxy API"
+      }
+      "shop" = {
+        description = "Eliza shop API"
+      }
+    }
+    global  = {}
+
+  }
 }
