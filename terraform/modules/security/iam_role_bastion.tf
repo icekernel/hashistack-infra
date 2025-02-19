@@ -33,3 +33,8 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logging_bastion" {
   policy_arn = aws_iam_policy.cloudwatch_instance_logging.arn
   role       = aws_iam_role.bastion.name
 }
+
+resource "aws_iam_role_policy_attachment" "secretsmanager_bastion" {
+  policy_arn = aws_iam_policy.secretsmanager_bastion.arn
+  role       = aws_iam_role.bastion.name
+}

@@ -31,6 +31,7 @@
     # 1 - always run
 
     - import_tasks: ./tasks/user-accounts.yml
+    - import_tasks: ./tasks/get-instance-tag-values.yml
 
     # 2 - run based on instance role
 
@@ -45,13 +46,28 @@
 
     # 3 - run once based on instance role
 
+    # 3.1 - role: bastion
+
+    - name: Check for bastion one‑time run flag
+      ansible.builtin.stat:
+        path: /tmp/ansible_pull_once_bastion.flag
+      register: run_once_flag_bastion
+
+    - import_tasks: ./tasks/pull-bastion-once.yml
+      when: role == 'bastion' and not run_once_flag_bastion.stat.exists
+
+    - name: Create bastion one‑time run flag
+      ansible.builtin.copy:
+        content: 'Ran on {{ ansible_date_time.iso8601 }}'
+        dest: /tmp/ansible_pull_once_bastion.flag
+      when: not run_once_flag_bastion.stat.exists
+
+    # 3.2 - role: eliza
+
     - name: Check for eliza one‑time run flag
       ansible.builtin.stat:
         path: /tmp/ansible_pull_once_eliza.flag
       register: run_once_flag_eliza
-
-    - import_tasks: ./tasks/eliza-set-facts.yml
-      when: role == 'eliza' and not run_once_flag_eliza.stat.exists
 
     - import_tasks: ./tasks/pull-eliza-once.yml
       when: role == 'eliza' and not run_once_flag_eliza.stat.exists
@@ -61,3 +77,21 @@
         content: 'Ran on {{ ansible_date_time.iso8601 }}'
         dest: /tmp/ansible_pull_once_eliza.flag
       when: not run_once_flag_eliza.stat.exists
+
+    # 4 - Consul client specific one‑time run tasks
+    #     - Doesn't run repeatedly to save on AWS Secrets Manager costs
+
+    - name: Check for consul_client one‑time run flag
+      ansible.builtin.stat:
+        path: /tmp/ansible_pull_once_consul_client.flag
+      register: run_once_flag_consul_client
+
+    - name: Import consul client specific tasks
+      import_tasks: ./tasks/pull-once-consul-clients.yml
+      when: role in ['nginx', 'eliza']
+
+    - name: Create consul_client one‑time run flag
+      ansible.builtin.copy:
+        content: 'Ran on {{ ansible_date_time.iso8601 }}'
+        dest: /tmp/ansible_pull_once_consul_client.flag
+      when: not run_once_flag_consul_client.stat.exists

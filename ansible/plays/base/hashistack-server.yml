@@ -1,124 +1,141 @@
 ---
-- name: install hashistack packages
+- name: Install hashistack packages
   hosts: bastion
   tasks:
-    - import_tasks: ./tasks/hashistack-packages.yml
+    - name: Import hashistack packages
+      ansible.builtin.import_tasks: ./tasks/hashistack-packages.yml
 
-- name: consul base configuration
+- name: Consul base configuration
   hosts: bastion
   tasks:
-    - import_tasks: ./tasks/consul-base.yml
+    - name: Import consul base configurations
+      ansible.builtin.import_tasks: ./tasks/consul-base.yml
 
-- name: consul server configuration
+- name: Consul server configuration
   hosts: bastion
 
   tasks:
-    - name: copy consul server cert
+    - name: Copy consul server cert
       ansible.builtin.copy:
         dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest.pem'
         src: './files/consul/{{ CONSUL_DATACENTER }}-server-consul-latest.pem'
+        mode: '0644'
       become: true
 
-    - name: copy consul server key
+    - name: Copy consul server key
       ansible.builtin.copy:
         dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest-key.pem'
         src: './files/consul/{{ CONSUL_DATACENTER }}-server-consul-latest-key.pem'
+        mode: '0644'
       become: true
 
-    - name: template consul server.hcl
+    - name: Template consul server.hcl
       ansible.builtin.template:
         src: ./templates/consul/server.hcl.j2
         dest: /etc/consul.d/server.hcl
+        mode: '0644'
       become: true
 
-- name: nomad base configuration
+- name: Nomad base configuration
   hosts: bastion
   tasks:
-    - import_tasks: ./tasks/nomad-base.yml
+    - name: Import nomad base configurations
+      ansible.builtin.import_tasks: ./tasks/nomad-base.yml
 
-- name: nomad server configuration
+- name: Nomad server configuration
   hosts: bastion
   tasks:
-    - name: copy nomad server cert
+    - name: Copy nomad server cert
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-server.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-server.pem'
+        mode: '0644'
       become: true
 
-    - name: copy nomad server key
+    - name: Copy nomad server key
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-server-key.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-server-key.pem'
+        mode: '0644'
       become: true
 
-    - name: copy nomad cli cert key
+    - name: Copy nomad cli cert key
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-cli-key.pem'
+        mode: '0644'
       become: true
 
-    - name: copy nomad cli cert
+    - name: Copy nomad cli cert
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-cli.pem'
+        mode: '0644'
       become: true
 
-    - name: template nomad bash profile in /etc/profile.d
+    - name: Template nomad bash profile in /etc/profile.d
       ansible.builtin.template:
         src: ./templates/nomad/nomad-bash-profile.j2
         dest: /etc/profile.d/nomad.sh
+        mode: '0644'
       become: true
 
-    - name: template nomad server.hcl
+    - name: Template nomad server.hcl
       ansible.builtin.template:
         src: ./templates/nomad/server.hcl.j2
         dest: /etc/nomad.d/server.hcl
+        mode: '0644'
       become: true
       vars:
-        NOMAD_GOSSIP_KEY: "{{ lookup('file', './files/nomad/'+ENVIRONMENT+'-gossip.key') }}"
+        nomad_gossip_key: "{{ lookup('file', './files/nomad/' + ENVIRONMENT + '-gossip.key') }}"
 
-- name: nomad jobs
+- name: Nomad jobs
   hosts: bastion
 
   tasks:
-    - import_tasks: ./tasks/nomad-jobs.yml
+    - name: Import nomad jobs
+      ansible.builtin.import_tasks: ./tasks/nomad-jobs.yml
 
-    - name: add memory oversubscription command to nomad unit
+    - name: Add memory oversubscription command to Nomad unit
       ansible.builtin.copy:
         dest: /opt/nomad-execstartpost.sh
         content: |
           #!/bin/sh
-          source /etc/profile.d/nomad.sh
+          . /etc/profile.d/nomad.sh
           while ! curl -k -s --fail $NOMAD_ADDR/v1/status/leader; do sleep 1; done
-          curl -k -s $NOMAD_ADDR/v1/operator/scheduler/configuration | jq '.SchedulerConfig | .MemoryOversubscriptionEnabled=true' | curl -k -X PUT $NOMAD_ADDR/v1/operator/scheduler/configuration -d @-
-        mode: 0755
+          curl -k -s $NOMAD_ADDR/v1/operator/scheduler/configuration \
+          | jq '.SchedulerConfig | .MemoryOversubscriptionEnabled=true' \
+          | curl -k -X PUT $NOMAD_ADDR/v1/operator/scheduler/configuration -d @-
+        mode: '0755'
       become: true
 
     - name: Ensure Nomad service unit is overridden with custom ExecStartPost
-      blockinfile:
-        path: "/etc/systemd/system/nomad.service.d/override.conf"
-        create: yes
-        marker: "# {mark} ANSIBLE MANAGED BLOCK: ExecStartPost"
+      ansible.builtin.blockinfile:
+        path: '/etc/systemd/system/nomad.service.d/override.conf'
+        create: true
+        marker: '# {mark} ANSIBLE MANAGED BLOCK: ExecStartPost'
         block: |
           [Service]
           ExecStartPost=/opt/nomad-execstartpost.sh
+        mode: '0644'
       become: true
 
-- name: install ssm deploy command scripts
+- name: Install ssm deploy command scripts
   hosts: bastion
 
   tasks:
-    - name: ensure /opt/actions directory
+    - name: Ensure /opt/actions directory
       ansible.builtin.file:
         path: /opt/actions
         state: directory
+        mode: '0755'
       become: true
 
-    - name: template ssm deploy command scripts
+    - name: Template ssm deploy command scripts
       ansible.builtin.template:
         dest: '/opt/actions/{{ item }}'
         src: './templates/nomad/actions/{{ item }}.j2'
-        mode: 0755
+        mode: '0755'
       become: true
       loop:
         - deploy.sh

@@ -17,7 +17,3 @@
 - name: Show collected instance tags
   debug:
     var: my_instance_tags
-
-- name: Get the customer id from the instance tag
-  set_fact:
-    customer_id: '{{ my_instance_tags.CustomerId }}'

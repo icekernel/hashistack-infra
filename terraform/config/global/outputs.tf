@@ -7,7 +7,7 @@ output "aws_region" {
 }
 
 output "account_id" {
-  value = "736080605287"
+  value = "686255952373"
 }
 
 output "domain" {

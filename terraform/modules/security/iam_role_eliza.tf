@@ -33,3 +33,8 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logging_eliza" {
   policy_arn = aws_iam_policy.cloudwatch_instance_logging.arn
   role       = aws_iam_role.eliza.name
 }
+
+resource "aws_iam_role_policy_attachment" "eliza_node_registration" {
+  policy_arn = aws_iam_policy.node_registration.arn
+  role       = aws_iam_role.eliza.name
+}

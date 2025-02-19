@@ -1,7 +1,7 @@
 server {
   enabled = true
   bootstrap_expect = {{ CONSUL_SERVER_COUNT }}
-  encrypt = "{{ NOMAD_GOSSIP_KEY }}"
+  encrypt = "{{ nomad_gossip_key }}"
 }
 tls {
   http = true

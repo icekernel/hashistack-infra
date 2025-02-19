@@ -1,3 +1,7 @@
+- name: Get the customer id from the instance tag
+  set_fact:
+    customer_id: '{{ my_instance_tags.CustomerId }}'
+
 - name: Fetch the secret from Secrets Manager
   set_fact:
     eliza_secret: "{{ lookup('amazon.aws.aws_secret', ENVIRONMENT +'-'+ role +'-'+ customer_id, region=aws_region) }}"

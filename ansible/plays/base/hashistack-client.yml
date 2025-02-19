@@ -1,45 +1,51 @@
 ---
-- name: install hashistack packages
+- name: Install hashistack packages
   hosts: docker, eliza, nginx
   tasks:
-    - import_tasks: ./tasks/hashistack-packages.yml
+    - name: Import hashistack packages
+      ansible.builtin.import_tasks: ./tasks/hashistack-packages.yml
 
-- name: consul base configuration
+- name: Consul base configuration
   hosts: docker, eliza, nginx
   tasks:
-    - import_tasks: ./tasks/consul-base.yml
+    - name: Import consul base configurations
+      ansible.builtin.import_tasks: ./tasks/consul-base.yml
 
-- name: consul client configuration
+- name: Consul client configuration
   hosts: docker, eliza, nginx
 
   tasks:
-    - name: copy consul client cert
+    - name: Copy consul client cert
       ansible.builtin.copy:
         dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
         src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
+        mode: '0644'
       become: true
 
-    - name: copy consul client key
+    - name: Copy consul client key
       ansible.builtin.copy:
         dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
         src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
+        mode: '0644'
       become: true
 
-    - name: template consul client.hcl
+    - name: Template consul client.hcl
       ansible.builtin.template:
         src: ./templates/consul/client.hcl.j2
         dest: /etc/consul.d/client.hcl
+        mode: '0644'
       become: true
 
-- name: nomad base configuration
+- name: Nomad base configuration
   hosts: docker, eliza, nginx
   tasks:
-    - import_tasks: ./tasks/nomad-base.yml
+    - name: Import nomad base configurations
+      ansible.builtin.import_tasks: ./tasks/nomad-base.yml
 
-- name: nomad client configuration
+- name: Nomad client configuration
   hosts: docker, eliza, nginx
   tasks:
-    - name: install nomad docker driver dependencies
+    - name: Install nomad docker driver dependencies
       ansible.builtin.apt:
         name: '{{ item }}'
         state: present
@@ -48,65 +54,73 @@
         - docker.io
         - amazon-ecr-credential-helper
 
-    - name: configure amazon-ecr-credential-helper
+    - name: Configure amazon-ecr-credential-helper
       ansible.builtin.template:
         src: ./templates/nomad/docker-auth.json.j2
         dest: /etc/docker-auth.json
+        mode: '0644'
       become: true
 
-    - name: copy nomad client cert
+    - name: Copy nomad client cert
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-client.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-client.pem'
+        mode: '0644'
       become: true
 
-    - name: copy nomad client key
+    - name: Copy nomad client key
       ansible.builtin.copy:
         dest: '/etc/nomad.d/{{ ENVIRONMENT }}-client-key.pem'
         src: './files/nomad/{{ ENVIRONMENT }}-client-key.pem'
+        mode: '0644'
       become: true
 
-    - name: template nomad client.hcl
+    - name: Template nomad client.hcl
       ansible.builtin.template:
         src: ./templates/nomad/client.hcl.j2
         dest: /etc/nomad.d/client.hcl
+        mode: '0644'
       become: true
       vars:
-        NOMAD_GOSSIP_KEY: "{{ lookup('file', './files/nomad/'+ENVIRONMENT+'-gossip.key') }}"
+        nomad_gossip_key: "{{ lookup('file', './files/nomad/' + ENVIRONMENT + '-gossip.key') }}"
 
-    - name: create resolved.conf.d
+    - name: Create resolved.conf.d
       ansible.builtin.file:
         path: /etc/systemd/resolved.conf.d
         state: directory
+        mode: '0755'
       become: true
 
-    - name: template docker resolved config
+    - name: Template docker resolved config
       ansible.builtin.template:
         src: ./templates/resolved.conf.d/docker.conf.j2
         dest: /etc/systemd/resolved.conf.d/docker.conf
+        mode: '0644'
       become: true
 
-    - name: template docker-daemon.json
+    - name: Template docker-daemon.json
       ansible.builtin.template:
         src: ./templates/docker-daemon.json.j2
         dest: /etc/docker/daemon.json
+        mode: '0644'
       become: true
 
-- name: install ssm action scripts on eliza nodes
+- name: Install ssm action scripts on eliza nodes
   hosts: eliza
 
   tasks:
-    - name: ensure /opt/actions directory
+    - name: Ensure /opt/actions directory
       ansible.builtin.file:
         path: /opt/actions
         state: directory
+        mode: '0755'
       become: true
 
-    - name: template ssm action scripts
+    - name: Template ssm action scripts
       ansible.builtin.template:
         dest: '/opt/actions/{{ item }}'
         src: './templates/eliza/actions/{{ item }}.j2'
-        mode: 0755
+        mode: '0755'
       become: true
       loop:
         - eliza-reconfigure-pull.sh

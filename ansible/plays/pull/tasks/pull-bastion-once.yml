@@ -1,0 +1,173 @@
+---
+- name: Bootstrap ACL on consul
+  ansible.builtin.shell:
+    cmd: |
+      consul acl bootstrap
+  delegate_to: localhost
+  register: bootstrap_acl
+
+- name: Set fact for bootstrap secret id
+  set_fact:
+    bootstrap_acl_secret: "{{ (bootstrap_acl.stdout | regex_search('SecretID:\\s+([0-9a-f-]+)', '\\1'))[0] }}"
+  when: bootstrap_acl.stdout is defined
+
+- name: Set ACL token on AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '{{ ENVIRONMENT }}/consul/acl_token'
+    secret: '{{ bootstrap_acl_secret }}'
+    state: present
+    region: '{{ aws_region }}'
+  when: bootstrap_acl.stdout is defined
+
+- name: Add ACL token to shell profile
+  ansible.builtin.copy:
+    dest: /etc/profile.d/consul.sh
+    content: 'export CONSUL_HTTP_TOKEN="{{ bootstrap_acl_secret }}"'
+  become: true
+  when: bootstrap_acl.stdout is defined
+
+- name: Create node registration policy
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'node-registration'
+    rules: |
+      node_prefix "" {
+        policy = "write"
+      }
+      service_prefix "" {
+        policy = "write"
+      }
+      agent_prefix "" {
+        policy = "write"
+      }
+  register: node_registration_policy
+  when: bootstrap_acl_secret is defined
+
+- name: Create node registration token
+  community.general.consul_token:
+    policies:
+      - name: node-registration
+    description: 'Node registration token'
+    token: '{{ bootstrap_acl_secret }}'
+  register: node_registration_token
+  when: bootstrap_acl_secret is defined
+
+- name: Set the node registration token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '{{ ENVIRONMENT }}/consul/node_registration'
+    secret: '{{ node_registration_token.token }}'
+    region: '{{ aws_region }}'
+  when: bootstrap_acl_secret is defined
+
+- name: Create minimal policy for DNS lookups only
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'dns-lookup'
+    rules: |
+      node_prefix "" {
+        policy = "read"
+      }
+
+      service_prefix "" {
+        policy = "read"
+      }
+
+      agent_prefix "" {
+        policy = "deny"
+      }
+
+      key_prefix "" {
+        policy = "deny"
+      }
+
+      session_prefix "" {
+        policy = "deny"
+      }
+  register: dns_lookup_policy
+  when: bootstrap_acl_secret is defined
+
+- name: List all Consul tokens
+  ansible.builtin.shell:
+    cmd: consul acl token list -token={{ bootstrap_acl_secret }} -format=json
+  register: consul_token_list
+
+- name: Set fact for anonymous token accessor ID
+  set_fact:
+    anonymous_accessor_id: "{{ 'AccessorID' | extract((consul_token_list.stdout | from_json) | selectattr('SecretID', 'equalto', 'anonymous') | list | first) }}"
+  when: consul_token_list.stdout is defined
+
+- name: Debug anonymous accessor ID
+  ansible.builtin.debug:
+    var: anonymous_accessor_id
+  when: anonymous_accessor_id is defined
+
+- name: Attach DNS lookup policy to anonymous token
+  community.general.consul_token:
+    policies:
+      - name: dns-lookup
+    token: '{{ bootstrap_acl_secret }}'
+    accessor_id: '{{ anonymous_accessor_id }}'
+  when: bootstrap_acl_secret is defined and anonymous_accessor_id is defined
+
+- name: Create consul server policy
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'consul-server'
+    rules: |
+      agent_prefix "" {
+        policy = "write"
+      }
+
+      node_prefix "" {
+        policy = "write"
+      }
+
+      service_prefix "" {
+        policy = "write"
+      }
+
+      key_prefix "" {
+        policy = "read"
+      }
+  register: consul_server_policy
+  when: bootstrap_acl_secret is defined
+
+- name: Create consul server token
+  community.general.consul_token:
+    policies:
+      - name: consul-server
+    description: 'Consul server token'
+    token: '{{ bootstrap_acl_secret }}'
+  register: consul_server_token
+  when: bootstrap_acl_secret is defined
+
+- name: Set the consul server token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '{{ ENVIRONMENT }}/consul/consul_server_registration'
+    secret: '{{ consul_server_token.token.SecretID }}'
+    region: '{{ aws_region }}'
+  when: bootstrap_acl_secret is defined
+
+- name: Copy the server acl.hcl with content
+  ansible.builtin.copy:
+    content: |
+      acl {
+        enabled = true
+        default_policy = "deny"
+        tokens {
+          default = "{{ consul_server_token.token.SecretID }}"
+        }
+      }
+    dest: /etc/consul.d/acl.hcl
+    owner: consul
+    group: consul
+    mode: '0600'
+  become: true
+  when: bootstrap_acl_secret is defined
+
+- name: Restart consul
+  ansible.builtin.systemd:
+    name: consul
+    state: restarted
+  become: true
+  when: bootstrap_acl_secret is defined

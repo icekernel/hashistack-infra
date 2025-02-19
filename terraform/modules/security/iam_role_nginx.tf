@@ -43,3 +43,8 @@ resource "aws_iam_role_policy_attachment" "ec2_dynamodb_full_access_nginx" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
   role = aws_iam_role.nginx.name
 }
+
+resource "aws_iam_role_policy_attachment" "nginx_node_registration" {
+  policy_arn = aws_iam_policy.node_registration.arn
+  role       = aws_iam_role.nginx.name
+}

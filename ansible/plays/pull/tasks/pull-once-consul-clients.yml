@@ -1,0 +1,15 @@
+---
+- name: Create acl.hcl file
+  ansible.builtin.copy:
+    content: |
+      acl {
+        enabled = true
+        default_policy = "deny"
+        tokens {
+          default = "{{ lookup('amazon.aws.aws_secret', ENVIRONMENT ~ '/consul/node_registration', region=aws_region) }}"
+        }
+      }
+    dest: /etc/consul.d/acl.hcl
+    owner: consul
+    group: consul
+    mode: '0600'
