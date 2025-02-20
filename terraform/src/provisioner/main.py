@@ -155,6 +155,11 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
                     f"arn:aws:s3:::{AWS_ACCOUNT}-eliza-agents/*",
                 ],
             },
+            {
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/node_registration*",
+            },
         ],
     }
     iam_client.put_role_policy(

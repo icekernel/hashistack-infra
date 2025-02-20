@@ -62,7 +62,39 @@
         dest: /tmp/ansible_pull_once_bastion.flag
       when: not run_once_flag_bastion.stat.exists
 
-    # 3.2 - role: eliza
+    # 3.2 - Consul client specific one‑time run tasks
+    #     - Doesn't run repeatedly to save on AWS Secrets Manager costs
+
+    - name: Check for consul_client one‑time run flag
+      ansible.builtin.stat:
+        path: /tmp/ansible_pull_once_consul_client.flag
+      register: run_once_flag_consul_client
+
+    - name: Import consul client specific tasks
+      import_tasks: ./tasks/pull-once-consul-clients.yml
+      when: role in ['nginx', 'eliza'] and not run_once_flag_consul_client.stat.exists
+
+    - name: Create consul_client one‑time run flag
+      ansible.builtin.copy:
+        content: 'Ran on {{ ansible_date_time.iso8601 }}'
+        dest: /tmp/ansible_pull_once_consul_client.flag
+      when: not run_once_flag_consul_client.stat.exists
+
+  handlers:
+    - name: Restart consul
+      ansible.builtin.systemd:
+        name: consul
+        state: restarted
+        enabled: yes
+      become: true
+
+- name: execute a playbook based on instance role
+  hosts: all
+
+  tasks:
+    # 4 - clients
+
+    # 4.1 - client: eliza
 
     - name: Check for eliza one‑time run flag
       ansible.builtin.stat:
@@ -78,20 +110,10 @@
         dest: /tmp/ansible_pull_once_eliza.flag
       when: not run_once_flag_eliza.stat.exists
 
-    # 4 - Consul client specific one‑time run tasks
-    #     - Doesn't run repeatedly to save on AWS Secrets Manager costs
-
-    - name: Check for consul_client one‑time run flag
-      ansible.builtin.stat:
-        path: /tmp/ansible_pull_once_consul_client.flag
-      register: run_once_flag_consul_client
-
-    - name: Import consul client specific tasks
-      import_tasks: ./tasks/pull-once-consul-clients.yml
-      when: role in ['nginx', 'eliza']
-
-    - name: Create consul_client one‑time run flag
-      ansible.builtin.copy:
-        content: 'Ran on {{ ansible_date_time.iso8601 }}'
-        dest: /tmp/ansible_pull_once_consul_client.flag
-      when: not run_once_flag_consul_client.stat.exists
+  handlers:
+    - name: Restart consul
+      ansible.builtin.systemd:
+        name: consul
+        state: restarted
+        enabled: yes
+      become: true

@@ -40,6 +40,9 @@
       agent_prefix "" {
         policy = "write"
       }
+      key_prefix "" {
+        policy = "write"
+      }
   register: node_registration_policy
   when: bootstrap_acl_secret is defined
 
@@ -55,7 +58,7 @@
 - name: Set the node registration token in AWS Secrets Manager
   community.aws.secretsmanager_secret:
     name: '{{ ENVIRONMENT }}/consul/node_registration'
-    secret: '{{ node_registration_token.token }}'
+    secret: '{{ node_registration_token.token.SecretID }}'
     region: '{{ aws_region }}'
   when: bootstrap_acl_secret is defined
 

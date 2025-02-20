@@ -13,3 +13,6 @@
     owner: consul
     group: consul
     mode: '0600'
+  become: true
+  notify:
+    - Restart consul
