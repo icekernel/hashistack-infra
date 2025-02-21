@@ -6,6 +6,7 @@ import logging
 import time
 import random
 import string
+import requests
 
 LOG = logging.getLogger(__name__)
 
@@ -207,6 +208,84 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
     return profile_arn
 
 
+def register_service_with_consul(
+    instance_id, environment, role, customer_id, consul_token
+):
+    """Registers the Eliza service with Consul on the given instance."""
+    ec2 = boto3.client("ec2")
+    try:
+        response = ec2.describe_instances(InstanceIds=[instance_id])
+        instance = response["Reservations"][0]["Instances"][0]
+        private_ip = instance["PrivateIpAddress"]
+        tags = instance.get("Tags", [])
+        consul_server_tag = next(
+            (tag for tag in tags if tag["Key"] == "ConsulServer"), None
+        )
+
+        if not consul_server_tag or consul_server_tag["Value"] != environment:
+            LOG.warning(
+                "Instance %s is not a Consul server for environment %s. Skipping registration.",
+                instance_id,
+                environment,
+            )
+            return
+
+        consul_host = private_ip  # Consul server runs on the same instance
+        consul_port = 8500  # Default Consul port
+
+        service_name = f"eliza-{instance_id}"
+        service_port = 3000  # Default Eliza port, make sure this is correct
+        health_check_interval = "10s"
+        health_check_timeout = "5s"
+
+        registration_payload = {
+            "ID": service_name,
+            "Name": "eliza",
+            "Tags": [
+                f"environment={environment}",
+                f"role={role}",
+                f"customer_id={customer_id}",
+            ],
+            "Address": private_ip,
+            "Port": service_port,
+            "Check": {
+                "DeregisterCriticalServiceAfter": "30m",
+                "Interval": health_check_interval,
+                "Timeout": health_check_timeout,
+                "HTTP": f"http://{private_ip}:{service_port}/healthcheck",
+            },
+        }
+
+        headers = {"Content-Type": "application/json"}
+        if consul_token:
+            headers["X-Consul-Token"] = consul_token
+
+        consul_url = f"http://{consul_host}:{consul_port}/v1/agent/service/register"
+        response = requests.put(
+            consul_url, data=json.dumps(registration_payload), headers=headers
+        )
+
+        if response.status_code == 200:
+            LOG.info(
+                "Successfully registered service %s with Consul on %s",
+                service_name,
+                consul_host,
+            )
+        else:
+            LOG.error(
+                "Failed to register service %s with Consul on %s. Status code: %s, Response: %s",
+                service_name,
+                consul_host,
+                response.status_code,
+                response.text,
+            )
+
+    except Exception as e:
+        LOG.error(
+            "Error registering service with Consul for instance %s: %s", instance_id, e
+        )
+
+
 def create_customer_resources(payload):
 
     # Retrieve parameters
@@ -332,6 +411,25 @@ def create_customer_resources(payload):
                 ],
             )
             instance_id = response["Instances"][0]["InstanceId"]
+
+            # Retrieve Consul token from Secrets Manager
+            sm_client = boto3.client("secretsmanager")
+            try:
+                consul_token_secret = sm_client.get_secret_value(
+                    SecretId=f"/{environment}/consul/node_registration"
+                )
+                consul_token = consul_token_secret["SecretString"]
+            except sm_client.exceptions.ResourceNotFoundException:
+                LOG.warning(
+                    "Consul token secret not found. Service registration will proceed without token."
+                )
+                consul_token = None
+
+            # Register service with Consul
+            register_service_with_consul(
+                instance_id, environment, role, customer_id, consul_token
+            )
+
             break  # Instance launched successfully
         except Exception as e:
             LOG.info("Attempt %d: Error launching instance: %s", attempt, str(e))
