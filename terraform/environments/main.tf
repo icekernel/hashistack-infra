@@ -65,6 +65,8 @@ module "provisioner" {
   source          = "../modules/provisioner"
   src_path        = "../src/provisioner"
   lambda_function = "provisioner"
+  subnet_ids      = module.vpc.private_subnets
+  security_group  = module.security.consul_sg
   env             = var.WORKSPACE
 }
 

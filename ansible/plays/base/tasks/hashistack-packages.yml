@@ -7,7 +7,7 @@
 
 - name: add hashicorp apt repo
   ansible.builtin.apt_repository:
-    repo: deb https://apt.releases.hashicorp.com focal main
+    repo: deb https://apt.releases.hashicorp.com jammy main
     state: present
   become: true
 

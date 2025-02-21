@@ -82,6 +82,10 @@ resource "aws_lambda_function" "instance_provisioner" {
   timeout          = var.lambda_timeout
   role             = aws_iam_role.lambda_execution_role.arn
   memory_size = var.lambda_memory
+  vpc_config {
+    subnet_ids = var.subnet_ids
+    security_group_ids = [var.security_group]
+  }
   environment {
     variables = merge({
       },

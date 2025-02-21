@@ -1,0 +1,19 @@
+---
+- name: Add envoy proxy apt key
+  ansible.builtin.apt_key:
+    url: https://apt.envoyproxy.io/signing.key
+    state: present
+  become: true
+
+- name: Add envoy proxy apt repo
+  ansible.builtin.apt_repository:
+    repo: deb [arch=amd64] https://apt.envoyproxy.io/ jammy main
+    state: present
+  become: true
+
+- name: Install envoy proxy
+  ansible.builtin.apt:
+    name: envoy
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true

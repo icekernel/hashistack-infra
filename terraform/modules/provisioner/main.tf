@@ -6,6 +6,16 @@ variable "env" {
   type = string
 }
 
+variable "subnet_ids" {
+  description = "List of subnet IDs to deploy the Lambda function."
+  type = list(string)
+}
+
+variable "security_group" {
+  description = "Security group ID for the Lambda function."
+  type = string
+}
+
 ######## START: Lambda block
 variable "src_path" {
   description = "Path to the Lambda function source code."
