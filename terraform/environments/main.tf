@@ -1,4 +1,3 @@
-
 module "vpc" {
   source      = "../modules/vpc"
   aws_region  = module.environment.aws_region
@@ -12,6 +11,16 @@ module "security" {
   account_id  = module.globals.account_id
   vpc_id      = module.vpc.vpc_id
   environment = var.WORKSPACE
+}
+
+module "endpoints" {
+  source           = "../modules/endpoints"
+  aws_region       = module.environment.aws_region
+  vpc_id           = module.vpc.vpc_id
+  private_subnets  = module.vpc.private_subnets
+  aws_api_sg       = module.security.consul_sg
+  environment      = var.WORKSPACE
+  product          = module.globals.product
 }
 
 module "bastion" {
