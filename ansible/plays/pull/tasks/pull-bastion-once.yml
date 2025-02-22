@@ -13,7 +13,7 @@
 
 - name: Set ACL token on AWS Secrets Manager
   community.aws.secretsmanager_secret:
-    name: '{{ ENVIRONMENT }}/consul/acl_token'
+    name: '/{{ ENVIRONMENT }}/consul/acl_token'
     secret: '{{ bootstrap_acl_secret }}'
     state: present
     region: '{{ aws_region }}'
@@ -57,7 +57,7 @@
 
 - name: Set the node registration token in AWS Secrets Manager
   community.aws.secretsmanager_secret:
-    name: '{{ ENVIRONMENT }}/consul/node_registration'
+    name: '/{{ ENVIRONMENT }}/consul/node_registration'
     secret: '{{ node_registration_token.token.SecretID }}'
     region: '{{ aws_region }}'
   when: bootstrap_acl_secret is defined
@@ -146,7 +146,7 @@
 
 - name: Set the consul server token in AWS Secrets Manager
   community.aws.secretsmanager_secret:
-    name: '{{ ENVIRONMENT }}/consul/consul_server_registration'
+    name: '/{{ ENVIRONMENT }}/consul/consul_server_registration'
     secret: '{{ consul_server_token.token.SecretID }}'
     region: '{{ aws_region }}'
   when: bootstrap_acl_secret is defined

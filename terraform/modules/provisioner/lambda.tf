@@ -84,7 +84,7 @@ resource "aws_lambda_function" "instance_provisioner" {
   memory_size = var.lambda_memory
   vpc_config {
     subnet_ids = var.subnet_ids
-    security_group_ids = [var.security_group]
+    security_group_ids = var.security_group
   }
   environment {
     variables = merge({

@@ -14,6 +14,10 @@ variable "bastion_sg" {
   type = string
 }
 
+variable "endpoint_sg" {
+  type = string
+}
+
 variable "vpc_id" {
   type = string
 }

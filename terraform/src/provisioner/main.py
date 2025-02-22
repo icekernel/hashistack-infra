@@ -9,6 +9,7 @@ import string
 import requests
 
 LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
 
 AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 AWS_ACCOUNT = os.environ.get("AMI_OWNER", "686255952373")
@@ -43,6 +44,7 @@ def lookup_security_group_ids(ec2, environment, role):
         f"{environment}-nomad",
         f"{environment}-consul",
         f"{environment}-{role}",
+        f"{environment}-endpoint",
     ]
     response = ec2.describe_security_groups(
         Filters=[{"Name": "group-name", "Values": group_names}]
@@ -416,7 +418,7 @@ def create_customer_resources(payload):
             sm_client = boto3.client("secretsmanager")
             try:
                 consul_token_secret = sm_client.get_secret_value(
-                    SecretId=f"/{environment}/consul/node_registration"
+                    SecretId=f"{environment}/consul/node_registration"
                 )
                 consul_token = consul_token_secret["SecretString"]
             except sm_client.exceptions.ResourceNotFoundException:

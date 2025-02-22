@@ -18,6 +18,6 @@ variable "environment" {
   type = string
 }
 
-variable "aws_api_sg" {
-  type = string
+variable "aws_api_endpoint_sgs" {
+  type = list(string)
 }

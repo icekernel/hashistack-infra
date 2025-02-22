@@ -27,3 +27,8 @@ output "iam_instance_profile_arn_nginx" {
   description = "IAM Instance for nginx"
   value       = aws_iam_instance_profile.nginx.arn
 }
+
+output "endpoint_sg" {
+  description = "Security Group for AWS API Endpoint"
+  value       = aws_security_group.endpoint_sg.id
+}

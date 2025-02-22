@@ -13,7 +13,7 @@ variable "subnet_ids" {
 
 variable "security_group" {
   description = "Security group ID for the Lambda function."
-  type = string
+  type = list(string)
 }
 
 ######## START: Lambda block

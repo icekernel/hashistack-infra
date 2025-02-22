@@ -91,6 +91,7 @@ module "asg" {
     aws_security_group.nginx.id,
     var.consul_sg,
     var.nomad_sg,
+    var.endpoint_sg,
   ]
 
   min_size                  = 1

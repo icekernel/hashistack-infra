@@ -32,6 +32,6 @@ module "vpc" {
   # DHCP Options are delicate stuff
   enable_dhcp_options              = true
   dhcp_options_domain_name         = "node.consul"
-  dhcp_options_domain_name_servers = ["127.0.0.1"]
+  # dhcp_options_domain_name_servers = ["127.0.0.1"]
 
 }

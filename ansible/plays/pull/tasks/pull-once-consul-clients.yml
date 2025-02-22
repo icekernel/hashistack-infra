@@ -6,7 +6,7 @@
         enabled = true
         default_policy = "deny"
         tokens {
-          default = "{{ lookup('amazon.aws.aws_secret', ENVIRONMENT ~ '/consul/node_registration', region=aws_region) }}"
+          default = "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/consul/node_registration', region=aws_region) }}"
         }
       }
     dest: /etc/consul.d/acl.hcl

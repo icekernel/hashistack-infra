@@ -35,6 +35,10 @@ variable "nomad_sg" {
   type = string
 }
 
+variable "endpoint_sg" {
+  type = string
+}
+
 variable "environment" {
   type = string
 }

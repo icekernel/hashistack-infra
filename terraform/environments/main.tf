@@ -18,7 +18,7 @@ module "endpoints" {
   aws_region       = module.environment.aws_region
   vpc_id           = module.vpc.vpc_id
   private_subnets  = module.vpc.private_subnets
-  aws_api_sg       = module.security.consul_sg
+  aws_api_endpoint_sgs      = [module.security.endpoint_sg]
   environment      = var.WORKSPACE
   product          = module.globals.product
 }
@@ -34,6 +34,7 @@ module "bastion" {
   instance_type   = module.environment.bastion_instance_type
   consul_sg       = module.security.consul_sg
   nomad_sg        = module.security.nomad_sg
+  endpoint_sg     = module.security.endpoint_sg
   environment     = var.WORKSPACE
 }
 
@@ -48,6 +49,7 @@ module "eliza" {
   consul_sg       = module.security.consul_sg
   nomad_sg        = module.security.nomad_sg
   bastion_sg      = module.bastion.bastion_sg
+  endpoint_sg     = module.security.endpoint_sg
   iam_profile     = module.security.iam_instance_profile_arn_eliza
   instance_type   = module.environment.eliza_instance_type
   domain          = module.globals.domain
@@ -64,6 +66,7 @@ module "nginx" {
   consul_sg       = module.security.consul_sg
   nomad_sg        = module.security.nomad_sg
   bastion_sg      = module.bastion.bastion_sg
+  endpoint_sg     = module.security.endpoint_sg
   iam_profile     = module.security.iam_instance_profile_arn_nginx
   instance_type   = module.environment.nginx_instance_type
   domain          = module.globals.domain
@@ -75,7 +78,7 @@ module "provisioner" {
   src_path        = "../src/provisioner"
   lambda_function = "provisioner"
   subnet_ids      = module.vpc.private_subnets
-  security_group  = module.security.consul_sg
+  security_group  = [module.security.consul_sg, module.security.nomad_sg, module.security.endpoint_sg]
   env             = var.WORKSPACE
 }
 

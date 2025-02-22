@@ -26,7 +26,8 @@ hostnames:
 
 filters:
   tag:Environment: prod1
-# exclude_filters:
-#   - tag:Name:
-#       - 'Legacy Production'
-#       - 'Legacy Staging'
+  tag:Packer: Use-Prism/eliza-infra
+  #exclude_filters:
+  #  - tag:Role:
+  #    - 'Legacy Production'
+  #    - 'Legacy Staging'

@@ -13,7 +13,7 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 
   subnet_ids = var.private_subnets
 
-  security_group_ids = [var.aws_api_sg]
+  security_group_ids = var.aws_api_endpoint_sgs
 
   private_dns_enabled = true
 
@@ -29,7 +29,7 @@ resource "aws_vpc_endpoint" "ssm" {
 
   subnet_ids = var.private_subnets
 
-  security_group_ids = [var.aws_api_sg]
+  security_group_ids = var.aws_api_endpoint_sgs
 
   private_dns_enabled = true
 
@@ -45,7 +45,7 @@ resource "aws_vpc_endpoint" "ec2" {
 
   subnet_ids = var.private_subnets
 
-  security_group_ids = [var.aws_api_sg]
+  security_group_ids = var.aws_api_endpoint_sgs
 
   private_dns_enabled = true
 

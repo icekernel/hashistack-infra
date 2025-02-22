@@ -249,6 +249,7 @@ resource "aws_security_group" "eliza" {
 #     aws_security_group.eliza.id,
 #     var.consul_sg,
 #     var.nomad_sg,
+#     var.endpoint_sg,
 #   ]
 #   user_data = base64encode(data.template_file.cloud_config_eliza.rendered)
 #   metadata_options {

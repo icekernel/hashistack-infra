@@ -16,6 +16,7 @@ resource "aws_iam_policy" "secretsmanager_bastion" {
         ]
         Effect   = "Allow"
         Resource = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.environment}/*"
+        Resource = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:/${var.environment}/*"
       }
     ]
   })

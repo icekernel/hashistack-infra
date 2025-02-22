@@ -4,7 +4,7 @@ data_dir = "/opt/consul"
 
 advertise_addr = "{{ '{{' }} GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" {{ '}}' }}"
 
-recursors = [ "1.1.1.1", "8.8.8.8" ]
+recursors = [ "10.0.0.2" ]
 verify_incoming = true
 verify_outgoing = true
 verify_server_hostname = true
