@@ -1,0 +1,7 @@
+---
+- name: Network
+  hosts: eliza
+
+  tasks:
+    - name: Eliza network
+      ansible.builtin.import_tasks: ./tasks/eliza-network.yml

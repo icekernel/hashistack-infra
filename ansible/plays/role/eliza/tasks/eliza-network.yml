@@ -1,0 +1,27 @@
+---
+- name: Restrict docker egress
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/restric-docker-to-vpc-traffic.service
+    content: |
+      [Unit]
+      Description=Limit docker egress traffic
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c 'iptables -I DOCKER-USER 1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT && iptables -I DOCKER-USER 2 -d 10.0.0.0/8 -j DROP'
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+  become: true
+
+- name: Enable restrict-docker-to-vpc-traffic service
+  ansible.builtin.systemd:
+    name: restric-docker-to-vpc-traffic.service
+    enabled: yes
+    daemon_reload: yes
+    state: started
+  become: true

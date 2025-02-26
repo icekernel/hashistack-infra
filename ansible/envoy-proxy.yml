@@ -1,7 +1,7 @@
 ---
 - name: Install hashistack packages
-  hosts: bastion #, eliza, nginx
+  hosts: bastion # , eliza, nginx
+
   tasks:
     - name: Import envoy tasks
       ansible.builtin.import_tasks: ./plays/base/tasks/envoy-proxy.yml
-

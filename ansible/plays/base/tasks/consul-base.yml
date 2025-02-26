@@ -13,53 +13,6 @@
   vars:
     CONSUL_KEY: "{{ lookup('file', './files/consul/{{ ENVIRONMENT }}-consul-gossip.key') }}"
 
-# - name: create resolved.conf.d
-#   ansible.builtin.file:
-#     path: /etc/systemd/resolved.conf.d
-#     state: directory
-#   become: true
-
-# - name: template consul resolved config
-#   ansible.builtin.template:
-#     src: ./templates/resolved.conf.d/consul.conf.j2
-#     dest: /etc/systemd/resolved.conf.d/consul.conf
-#   become: true
-
-# - name: template main resolved.conf
-#   ansible.builtin.template:
-#     src: ./templates/resolved.conf.d/resolved.conf.j2
-#     dest: /etc/systemd/resolved.conf
-#   become: true
-
-# - name: Template dnsmasq configuration for our consul dns
-#   ansible.builtin.template:
-#     src: ./templates/dnsmasq.conf.j2
-#     dest: /etc/dnsmasq.d/10-consul.conf
-#   become: true
-
-# - name: Disable systemd-resolved
-#   ansible.builtin.systemd:
-#     name: systemd-resolved
-#     enabled: no
-#     state: stopped
-#   become: true
-
-# - name: Restart dnsmasq
-#   ansible.builtin.systemd:
-#     name: dnsmasq
-#     state: restarted
-#     enabled: yes
-#   become: true
-
-# - name: Configure /etc/resolv.conf to use dnsmasq
-#   ansible.builtin.copy:
-#     dest: /etc/resolv.conf
-#     content: |
-#       # {{ ansible_managed }}
-#       nameserver 127.0.0.1
-#       search node.consul
-#   become: true
-
 - name: Append hostname to /etc/hosts
   ansible.builtin.shell:
     cmd: echo "127.0.0.1 $(hostname)" >> /etc/hosts

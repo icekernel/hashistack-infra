@@ -13,5 +13,8 @@
 - name: configure docker role
   ansible.builtin.import_playbook: ../ansible/plays/role/docker/main.yml
 
+- name: configure eliza docker network
+  ansible.builtin.import_playbook: ../ansible/plays/role/eliza/network.yml
+
 - name: configure eliza role
   ansible.builtin.import_playbook: ../ansible/plays/role/eliza/main.yml
