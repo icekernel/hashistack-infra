@@ -1,0 +1,11 @@
+---
+- name: template nomad.hcl
+  ansible.builtin.template:
+    src: ../../base/templates/nomad/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+  become: true
+  vars:
+    CONSUL_KEY: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT +'/consul/nomad_agents', region=aws_region) }}"
+    CONSUL_DATACENTER: '{{ AWS_REGION }}-{{ ENVIRONMENT }}'
+  notify:
+    - Restart nomad

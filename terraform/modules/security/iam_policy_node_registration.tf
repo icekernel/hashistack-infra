@@ -12,7 +12,11 @@ resource "aws_iam_policy" "node_registration" {
           "secretsmanager:DescribeSecret"
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:/${var.environment}/consul/node_registration*"
+        Resource = [
+          "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:/${var.environment}/consul/node_registration*",
+          "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:/${var.environment}/consul/nomad_agents*",
+          "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:/${var.environment}/nomad/client_token*",
+        ]
       }
     ]
   })

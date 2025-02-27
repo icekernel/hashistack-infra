@@ -19,6 +19,7 @@
   become: true
   with_items:
     - consul
+    - consul-cni
     - consul-template
     - nomad
     - vault

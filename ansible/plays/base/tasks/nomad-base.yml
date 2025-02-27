@@ -11,4 +11,4 @@
     dest: /etc/nomad.d/nomad.hcl
   become: true
   vars:
-    CONSUL_KEY: "{{ lookup('file', './files/nomad/{{ ENVIRONMENT }}-gossip.key') }}"
+    CONSUL_KEY: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT +'/nomad/client_token', region=aws_region) }}"

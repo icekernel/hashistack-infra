@@ -80,6 +80,13 @@
         mode: '0644'
       become: true
 
+    - name: Touch the nomad acl file
+      ansible.builtin.copy:
+        dest: /etc/profile.d/nomad_acl.sh
+        content: ''
+        mode: '0644'
+      become: true
+
     - name: Template nomad server.hcl
       ansible.builtin.template:
         src: ./templates/nomad/server.hcl.j2
@@ -102,10 +109,11 @@
         content: |
           #!/bin/sh
           . /etc/profile.d/nomad.sh
-          while ! curl -k -s --fail $NOMAD_ADDR/v1/status/leader; do sleep 1; done
-          curl -k -s $NOMAD_ADDR/v1/operator/scheduler/configuration \
+          . /etc/profile.d/nomad_acl.sh
+          while ! curl -k -s --fail -H "X-Nomad-Token: ${NOMAD_TOKEN}" $NOMAD_ADDR/v1/status/leader; do sleep 1; done
+          curl -k -s -H "X-Nomad-Token: ${NOMAD_TOKEN}" $NOMAD_ADDR/v1/operator/scheduler/configuration \
           | jq '.SchedulerConfig | .MemoryOversubscriptionEnabled=true' \
-          | curl -k -X PUT $NOMAD_ADDR/v1/operator/scheduler/configuration -d @-
+          | curl -k -X PUT -H "X-Nomad-Token: ${NOMAD_TOKEN}" $NOMAD_ADDR/v1/operator/scheduler/configuration -d @-
         mode: '0755'
       become: true
 

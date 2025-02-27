@@ -1,0 +1,31 @@
+---
+- name: Bootstrap ACL on nomad
+  hosts: bastion # , eliza, nginx
+
+  tasks:
+    - name: Bootstrap ACL on consul
+      ansible.builtin.shell:
+        cmd: |
+          consul acl bootstrap
+      delegate_to: localhost
+      register: bootstrap_acl
+
+    - name: Set fact for bootstrap secret id
+      set_fact:
+        bootstrap_acl_secret: "{{ (bootstrap_acl.stdout | regex_search('SecretID:\\s+([0-9a-f-]+)', '\\1'))[0] }}"
+      when: bootstrap_acl.stdout is defined
+
+    - name: Set ACL token on AWS Secrets Manager
+      community.aws.aws_secret:
+        name: '/{{ ENVIRONMENT }}/consul/acl_token'
+        secret: '{{ bootstrap_acl_secret }}'
+        state: present
+        region: '{{ aws_region }}'
+      when: bootstrap_acl.stdout is defined
+
+    - name: Add ACL token to shell profile
+      ansible.builtin.copy:
+        dest: /etc/profile.d/consul.sh
+        content: 'export CONSUL_HTTP_TOKEN="{{ bootstrap_acl_secret }}"'
+      become: true
+      when: bootstrap_acl.stdout is defined

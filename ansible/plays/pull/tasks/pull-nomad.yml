@@ -1,9 +1,0 @@
----
-    - name: Check Nomad memory over-subscription
-      shell: "curl -k -s https://localhost:4646/v1/operator/scheduler/configuration |   jq -r '.SchedulerConfig | .MemoryOversubscriptionEnabled'"
-      register: nomad_memory_oversubscription_enabled
-      changed_when: False
-
-    - name: Enable Nomad memory over-subscription
-      shell: "curl -k -s https://localhost:4646/v1/operator/scheduler/configuration |   jq '.SchedulerConfig | .MemoryOversubscriptionEnabled=true' |   curl -k -X PUT https://localhost:4646/v1/operator/scheduler/configuration -d @-"
-      when: nomad_memory_oversubscription_enabled.stdout == "false"

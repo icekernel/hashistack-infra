@@ -1,14 +1,30 @@
 ---
-- name: copy consul ca cert
+- name: Copy consul ca cert
   ansible.builtin.copy:
     dest: '/etc/consul.d/{{ ENVIRONMENT }}-consul-agent-ca.pem'
     src: './files/consul/{{ ENVIRONMENT }}-consul-agent-ca.pem'
+    mode: '0644'
   become: true
 
-- name: template consul.hcl
+- name: Copy consul client cert
+  ansible.builtin.copy:
+    dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
+    src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
+    mode: '0644'
+  become: true
+
+- name: Copy consul client key
+  ansible.builtin.copy:
+    dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
+    src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
+    mode: '0644'
+  become: true
+
+- name: Template consul.hcl
   ansible.builtin.template:
     src: ./templates/consul/consul.hcl.j2
     dest: /etc/consul.d/consul.hcl
+    mode: '0644'
   become: true
   vars:
     CONSUL_KEY: "{{ lookup('file', './files/consul/{{ ENVIRONMENT }}-consul-gossip.key') }}"

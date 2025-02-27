@@ -3,7 +3,7 @@ data_dir = "/opt/nomad"
 
 # if acl is enabled run `nomad acl bootstrap` to get the token
 acl {
-  enabled = false
+  enabled = true
 }
 
 plugin "docker" {
@@ -12,4 +12,30 @@ plugin "docker" {
       config = "/etc/docker-auth.json"
     }
   }
+}
+
+consul {
+  address = "127.0.0.1:8500"
+  token = "{{ CONSUL_KEY }}"
+
+  service_identity {
+    aud = ["consul.io"]
+    ttl = "1h"
+  }
+
+  task_identity {
+    aud = ["consul.io"]
+    ttl = "1h"
+  }
+
+#  server_service_name = "nomad"
+#  client_service_name = "nomad-client"
+
+  auto_advertise      = true
+  server_auto_join    = true
+  client_auto_join    = true
+
+  ca_file = "/etc/consul.d/{{ ENVIRONMENT}}-consul-agent-ca.pem"
+  cert_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem"
+  key_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem"
 }

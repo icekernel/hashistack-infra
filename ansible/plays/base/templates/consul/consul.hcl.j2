@@ -13,6 +13,10 @@ ca_file = "/etc/consul.d/{{ ENVIRONMENT}}-consul-agent-ca.pem"
 
 retry_join = ["provider=aws tag_key=ConsulServer tag_value={{ ENVIRONMENT }}"]
 
+ports {
+  grpc_tls = 8502
+}
+
 acl {
   enabled = true
   default_policy = "deny"

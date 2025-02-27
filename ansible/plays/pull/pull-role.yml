@@ -11,6 +11,7 @@
     # this needs metadata access for the instance set in launch template!!
     - set_fact:
         role: '{{ meta.ansible_facts.ansible_ec2_tags_instance_Role }}'
+        AWS_REGION: '{{ meta.ansible_facts.ansible_ec2_instance_identity_document_region }}'
 
     # 0 - run once
 
@@ -41,8 +42,8 @@
     - import_tasks: ./tasks/pull-bastion.yml
       when: role == 'bastion'
 
-    - import_tasks: ./tasks/pull-nomad.yml
-      when: role == 'bastion'
+    # - import_tasks: ./tasks/pull-nomad.yml
+    #   when: role == 'bastion'
 
     # 3 - run once based on instance role
 
@@ -62,8 +63,23 @@
         dest: /tmp/ansible_pull_once_bastion.flag
       when: not run_once_flag_bastion.stat.exists
 
-    # 3.2 - Consul client specific one‑time run tasks
+    # 3.2 - Hashistack one‑time run tasks
     #     - Doesn't run repeatedly to save on AWS Secrets Manager costs
+
+    - name: Check for consul_all one‑time run flag
+      ansible.builtin.stat:
+        path: /tmp/ansible_pull_once_consul_all.flag
+      register: run_once_flag_consul_all
+
+    - name: Import consul client specific tasks
+      import_tasks: ./tasks/pull-once-consul-all.yml
+      when: not run_once_flag_consul_all.stat.exists
+
+    - name: Create consul_all one‑time run flag
+      ansible.builtin.copy:
+        content: 'Ran on {{ ansible_date_time.iso8601 }}'
+        dest: /tmp/ansible_pull_once_consul_all.flag
+      when: not run_once_flag_consul_all.stat.exists
 
     - name: Check for consul_client one‑time run flag
       ansible.builtin.stat:
@@ -84,6 +100,13 @@
     - name: Restart consul
       ansible.builtin.systemd:
         name: consul
+        state: restarted
+        enabled: yes
+      become: true
+
+    - name: Restart nomad
+      ansible.builtin.systemd:
+        name: nomad
         state: restarted
         enabled: yes
       become: true
@@ -114,6 +137,13 @@
     - name: Restart consul
       ansible.builtin.systemd:
         name: consul
+        state: restarted
+        enabled: yes
+      become: true
+
+    - name: Restart nomad
+      ansible.builtin.systemd:
+        name: nomad
         state: restarted
         enabled: yes
       become: true

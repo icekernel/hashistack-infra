@@ -161,7 +161,11 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
             {
                 "Effect": "Allow",
                 "Action": ["secretsmanager:GetSecretValue"],
-                "Resource": f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/node_registration*",
+                "Resource": [
+                    f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/node_registration*",
+                    f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/nomad_agents*",
+                    f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/nomad/client_token*",
+                ],
             },
         ],
     }
@@ -415,22 +419,22 @@ def create_customer_resources(payload):
             instance_id = response["Instances"][0]["InstanceId"]
 
             # Retrieve Consul token from Secrets Manager
-            sm_client = boto3.client("secretsmanager")
-            try:
-                consul_token_secret = sm_client.get_secret_value(
-                    SecretId=f"{environment}/consul/node_registration"
-                )
-                consul_token = consul_token_secret["SecretString"]
-            except sm_client.exceptions.ResourceNotFoundException:
-                LOG.warning(
-                    "Consul token secret not found. Service registration will proceed without token."
-                )
-                consul_token = None
+            # sm_client = boto3.client("secretsmanager")
+            # try:
+            #     consul_token_secret = sm_client.get_secret_value(
+            #         SecretId=f"{environment}/consul/node_registration"
+            #     )
+            #     consul_token = consul_token_secret["SecretString"]
+            # except sm_client.exceptions.ResourceNotFoundException:
+            #     LOG.warning(
+            #         "Consul token secret not found. Service registration will proceed without token."
+            #     )
+            #     consul_token = None
 
-            # Register service with Consul
-            register_service_with_consul(
-                instance_id, environment, role, customer_id, consul_token
-            )
+            # # Register service with Consul
+            # register_service_with_consul(
+            #     instance_id, environment, role, customer_id, consul_token
+            # )
 
             break  # Instance launched successfully
         except Exception as e:

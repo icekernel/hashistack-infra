@@ -99,11 +99,6 @@
     anonymous_accessor_id: "{{ 'AccessorID' | extract((consul_token_list.stdout | from_json) | selectattr('SecretID', 'equalto', 'anonymous') | list | first) }}"
   when: consul_token_list.stdout is defined
 
-- name: Debug anonymous accessor ID
-  ansible.builtin.debug:
-    var: anonymous_accessor_id
-  when: anonymous_accessor_id is defined
-
 - name: Attach DNS lookup policy to anonymous token
   community.general.consul_token:
     policies:
@@ -174,3 +169,124 @@
     state: restarted
   become: true
   when: bootstrap_acl_secret is defined
+
+- name: Bootstrap ACL on nomad
+  ansible.builtin.shell:
+    cmd: |
+      NOMAD_ADDR=https://localhost:4646 \
+      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
+      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
+      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
+      nomad acl bootstrap
+  delegate_to: localhost
+  register: bootstrap_acl_nomad
+
+- name: Set fact for nomad secret id bootstrap
+  set_fact:
+    bootstrap_acl_secret_nomad: "{{ (bootstrap_acl_nomad.stdout | regex_search('Secret ID\\s+=\\s+([0-9a-f-]+)', '\\1'))[0] }}"
+  when: bootstrap_acl_nomad.stdout is defined
+
+- name: Set Nomad ACL token on AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/nomad/acl_token'
+    secret: '{{ bootstrap_acl_secret_nomad }}'
+    state: present
+    region: '{{ aws_region }}'
+  when: bootstrap_acl_nomad.stdout is defined
+
+- name: Add ACL token to shell profile
+  ansible.builtin.copy:
+    dest: /etc/profile.d/nomad_acl.sh
+    content: 'export NOMAD_TOKEN="{{ bootstrap_acl_secret_nomad }}"'
+  become: true
+  when: bootstrap_acl_nomad.stdout is defined
+
+- name: Create the consul policy for nomad agents
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'nomad-agents'
+    rules: |
+      agent_prefix "" {
+        policy = "read"
+      }
+
+      node_prefix "" {
+        policy = "write"
+      }
+
+      service_prefix "" {
+        policy = "write"
+      }
+  register: nomad_agents_policy
+  when: bootstrap_acl_secret is defined
+
+- name: Create nomad agents token on consul
+  community.general.consul_token:
+    policies:
+      - name: nomad-agents
+    description: 'Nomad agents token'
+    token: '{{ bootstrap_acl_secret }}'
+  register: nomad_agents_token
+  when: bootstrap_acl_secret is defined
+
+- name: Set the nomad agents token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/consul/nomad_agents'
+    secret: '{{ nomad_agents_token.token.SecretID }}'
+    region: '{{ aws_region }}'
+  when: bootstrap_acl_secret is defined
+
+- name: Create client policy file
+  ansible.builtin.copy:
+    content: |
+      namespace "*" {
+        policy = "read"
+      }
+      node {
+        policy = "write"
+      }
+      agent {
+        policy = "write"
+      }
+    dest: /tmp/nomad-client-policy.hcl
+    mode: '0600'
+  delegate_to: localhost
+
+- name: Apply client policy
+  ansible.builtin.shell:
+    cmd: |
+      NOMAD_ADDR=https://localhost:4646 \
+      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
+      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
+      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
+      NOMAD_TOKEN={{ bootstrap_acl_secret_nomad }} \
+      nomad acl policy apply -description "Node Client Policy" nomad-client-policy /tmp/nomad-client-policy.hcl
+  delegate_to: localhost
+  register: client_policy_result
+  when: bootstrap_acl_secret_nomad is defined
+
+- name: Create client token
+  ansible.builtin.shell:
+    cmd: |
+      NOMAD_ADDR=https://localhost:4646 \
+      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
+      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
+      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
+      NOMAD_TOKEN={{ bootstrap_acl_secret_nomad }} \
+      nomad acl token create -name "client-token" -policy nomad-client-policy -type client -global -json
+  delegate_to: localhost
+  register: client_token_result
+  when: bootstrap_acl_secret_nomad is defined
+
+- name: Parse client token
+  set_fact:
+    client_token_secret: '{{ (client_token_result.stdout | from_json).SecretID }}'
+  when: client_token_result.stdout is defined
+
+- name: Store client token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/nomad/client_token'
+    secret: '{{ client_token_secret }}'
+    state: present
+    region: '{{ aws_region }}'
+  when: client_token_secret is defined

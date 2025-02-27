@@ -15,20 +15,6 @@
   hosts: docker, eliza, nginx
 
   tasks:
-    - name: Copy consul client cert
-      ansible.builtin.copy:
-        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
-        src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest.pem'
-        mode: '0644'
-      become: true
-
-    - name: Copy consul client key
-      ansible.builtin.copy:
-        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
-        src: './files/consul/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem'
-        mode: '0644'
-      become: true
-
     - name: Template consul client.hcl
       ansible.builtin.template:
         src: ./templates/consul/client.hcl.j2
