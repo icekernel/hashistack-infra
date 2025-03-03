@@ -14,18 +14,21 @@
 - name: Consul server configuration
   hosts: bastion
 
+  vars:
+    CONSUL_DOMAIN: 'consul'
+
   tasks:
     - name: Copy consul server cert
       ansible.builtin.copy:
-        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest.pem'
-        src: './files/consul/{{ CONSUL_DATACENTER }}-server-consul-latest.pem'
+        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-{{ CONSUL_DOMAIN }}-latest.pem'
+        src: './files/consul/{{ CONSUL_DATACENTER }}-server-{{ CONSUL_DOMAIN }}-latest.pem'
         mode: '0644'
       become: true
 
     - name: Copy consul server key
       ansible.builtin.copy:
-        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-consul-latest-key.pem'
-        src: './files/consul/{{ CONSUL_DATACENTER }}-server-consul-latest-key.pem'
+        dest: '/etc/consul.d/{{ CONSUL_DATACENTER }}-server-{{ CONSUL_DOMAIN }}-latest-key.pem'
+        src: './files/consul/{{ CONSUL_DATACENTER }}-server-{{ CONSUL_DOMAIN }}-latest-key.pem'
         mode: '0644'
       become: true
 

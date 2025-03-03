@@ -1,6 +1,9 @@
 - name: execute a playbook based on instance role
   hosts: all
 
+  vars:
+    CONSUL_DOMAIN: 'consul'
+
   tasks:
     - amazon.aws.ec2_metadata_facts:
       register: meta

@@ -42,3 +42,7 @@ variable "endpoint_sg" {
 variable "environment" {
   type = string
 }
+
+variable "vault_sg" {
+  type = string
+}

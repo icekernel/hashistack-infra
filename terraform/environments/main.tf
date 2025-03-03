@@ -35,6 +35,7 @@ module "bastion" {
   consul_sg       = module.security.consul_sg
   nomad_sg        = module.security.nomad_sg
   endpoint_sg     = module.security.endpoint_sg
+  vault_sg        = module.security.vault_sg
   environment     = var.WORKSPACE
 }
 

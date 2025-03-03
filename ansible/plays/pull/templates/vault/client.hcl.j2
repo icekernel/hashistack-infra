@@ -1,0 +1,49 @@
+ui = true
+
+pid_file = "/var/run/vault-agent.pid"
+
+auto_auth {
+  method "approle" {
+    mount_path = "auth/approle"
+    config = {
+      role_id_file_path   = "/etc/vault.d/role_id"    # Your role ID file
+      secret_id_file_path = "/etc/vault.d/secret_id"  # Your secret ID file
+    }
+  }
+
+  sink "file" {
+    config = {
+      path = "/etc/vault.d/vault-token"
+    }
+  }
+}
+
+api_proxy {
+  use_auto_auth_token = true
+}
+
+cache {
+}
+
+# The listener runs on the local machine.
+listener "tcp" {
+  address     = "127.0.0.1:8200"
+  tls_disable = true   # For simplicity; enable TLS in production.
+  tls_cert_file = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent.pem"
+  tls_key_file  = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-key.pem"
+}
+
+vault {
+  address = "http://vault.service.consul:8200"
+  token   = "{{ vault_agent_token }}"
+}
+
+service_registration "consul" {
+  address = "127.0.0.1:8500"
+  token   = "{{ consul_node_registration_token }}"
+}
+storage "raft" {
+  path = "/opt/vault/data"
+  node_id = "{{ vault_node_id }}"
+}
+

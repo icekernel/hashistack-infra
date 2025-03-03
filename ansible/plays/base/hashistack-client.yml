@@ -1,18 +1,18 @@
 ---
 - name: Install hashistack packages
-  hosts: docker, eliza, nginx
+  hosts: all,!bastion
   tasks:
     - name: Import hashistack packages
       ansible.builtin.import_tasks: ./tasks/hashistack-packages.yml
 
 - name: Consul base configuration
-  hosts: docker, eliza, nginx
+  hosts: all,!bastion
   tasks:
     - name: Import consul base configurations
       ansible.builtin.import_tasks: ./tasks/consul-base.yml
 
 - name: Consul client configuration
-  hosts: docker, eliza, nginx
+  hosts: all,!bastion
 
   tasks:
     - name: Template consul client.hcl
@@ -23,13 +23,13 @@
       become: true
 
 - name: Nomad base configuration
-  hosts: docker, eliza, nginx
+  hosts: all,!bastion
   tasks:
     - name: Import nomad base configurations
       ansible.builtin.import_tasks: ./tasks/nomad-base.yml
 
 - name: Nomad client configuration
-  hosts: docker, eliza, nginx
+  hosts: all,!bastion
   tasks:
     - name: Install nomad docker driver dependencies
       ansible.builtin.apt:

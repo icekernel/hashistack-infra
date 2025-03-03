@@ -1,7 +1,6 @@
 datacenter = "{{ CONSUL_DATACENTER }}"
 data_dir = "/opt/nomad"
 
-# if acl is enabled run `nomad acl bootstrap` to get the token
 acl {
   enabled = true
 }
@@ -38,4 +37,14 @@ consul {
   ca_file = "/etc/consul.d/{{ ENVIRONMENT}}-consul-agent-ca.pem"
   cert_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest.pem"
   key_file = "/etc/consul.d/{{ CONSUL_DATACENTER }}-client-consul-latest-key.pem"
+}
+
+vault {
+  enabled = true
+  address = "http://127.0.0.1:8200"
+
+  default_identity {
+    aud = ["vault.io"]
+    ttl = "1h"
+  }
 }

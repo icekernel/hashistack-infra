@@ -63,6 +63,7 @@ resource "aws_launch_template" "bastion" {
     var.consul_sg,
     var.nomad_sg,
     var.endpoint_sg,
+    var.vault_sg,
   ]
   user_data = base64encode(data.template_file.cloud_config_bastion.rendered)
   metadata_options {

@@ -38,3 +38,8 @@ resource "aws_iam_role_policy_attachment" "secretsmanager_bastion" {
   policy_arn = aws_iam_policy.secretsmanager_bastion.arn
   role       = aws_iam_role.bastion.name
 }
+
+resource "aws_iam_role_policy_attachment" "kms_bastion" {
+  policy_arn = aws_iam_policy.kms_bastion.arn
+  role       = aws_iam_role.bastion.name
+}

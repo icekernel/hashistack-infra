@@ -1,4 +1,8 @@
 ---
+- name: Set fact on consul node registration token
+  ansible.builtin.set_fact:
+    consul_node_registration_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/consul/node_registration', region=aws_region) }}"
+
 - name: Create acl.hcl file
   ansible.builtin.copy:
     content: |
@@ -16,3 +20,54 @@
   become: true
   notify:
     - Restart consul
+
+- name: Copy vault server cert
+  ansible.builtin.copy:
+    dest: '/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem'
+    src: '../../base/files/vault/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem'
+    mode: '0644'
+  become: true
+
+- name: Copy vault server key
+  ansible.builtin.copy:
+    dest: '/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem'
+    src: '../../base/files/vault/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem'
+    mode: '0644'
+  become: true
+
+- name: Set fact vault_node_id
+  ansible.builtin.set_fact:
+    vault_node_id: "{{ ENVIRONMENT }}-{{ role }}-{{ ansible_default_ipv4.address | replace('.', '-') }}"
+    vault_agent_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/vault/agent_token', region=aws_region) }}"
+    consul_node_registration_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/consul/vault_server_registration', region=aws_region) }}"
+
+- name: Template vault.hcl with client config
+  ansible.builtin.template:
+    src: ./templates/vault/client.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    mode: '0644'
+  become: true
+
+- name: Create vault agent systemd unit file
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vault-agent.service
+    content: |
+      [Unit]
+      Description=Vault Agent
+      Requires=network-online.target
+      After=network-online.target
+      [Service]
+      EnvironmentFile=/etc/vault.d/vault.env
+      ExecStart=/usr/bin/vault agent -config=/etc/vault.d/vault.hcl
+      Restart=on-failure
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+  become: true
+
+- name: Enable and start vault agent systemd service
+  ansible.builtin.systemd:
+    name: vault-agent
+    enabled: true
+    state: restarted
+  become: true

@@ -14,7 +14,7 @@ if [ -z "$ENV" ]; then
   exit 1
 fi
 if [ -z "$DC" ]; then
-  DC="ca-central-1"
+  DC="eu-central-1"
   echo "Using default DC: $DC"
 fi
 
@@ -31,4 +31,3 @@ mv ${DOMAIN}-agent-ca.pem ${ENV}-${DOMAIN}-agent-ca.pem
 mv ${DOMAIN}-agent-ca-key.pem ${ENV}-${DOMAIN}-agent-ca-key.pem
 
 ../../../../bin/rotate-consul-certs.sh $ENV $DC $DOMAIN
-

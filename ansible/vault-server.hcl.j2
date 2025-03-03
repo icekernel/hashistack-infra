@@ -1,0 +1,19 @@
+listener "tcp" {
+  address       = "0.0.0.0:8200"
+  tls_cert_file = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem"
+  tls_key_file  = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem"
+  tls_disable = true
+}
+
+seal "awskms" {
+  region     = "{{ aws_region }}"
+  kms_key_id = "alias/vault-{{ ENVIRONMENT }}"
+}
+
+ui = true
+
+storage "consul" {
+  address = "127.0.0.1:8500"
+  path    = "vault/"
+  token   = "{{ vault_token }}"
+}

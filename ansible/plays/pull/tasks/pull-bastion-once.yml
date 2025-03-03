@@ -290,3 +290,249 @@
     state: present
     region: '{{ aws_region }}'
   when: client_token_secret is defined
+
+- name: Create vault server policy
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'vault-server'
+    rules: |
+      node_prefix "{{ ENVIRONMENT }}-bastion-" {
+        policy = "write"
+      }
+
+      service "vault" {
+        policy = "write"
+      }
+
+      agent_prefix "" {
+        policy = "read"
+      }
+
+      session_prefix "{{ ENVIRONMENT }}-bastion-" {
+        policy = "write"
+      }
+
+      check_prefix "vault" {
+        policy = "write"
+      }
+
+      key_prefix "vault/" {
+        policy = "write"
+      }
+  register: vault_server_policy
+  when: bootstrap_acl_secret is defined
+
+- name: Create vault server token
+  community.general.consul_token:
+    policies:
+      - name: vault-server
+    description: 'Vault server token'
+    token: '{{ bootstrap_acl_secret }}'
+  register: vault_server_token_output
+  when: bootstrap_acl_secret is defined
+
+- name: Set the vault server token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/consul/vault_server_registration'
+    secret: '{{ vault_server_token_output.token.SecretID }}'
+    region: '{{ aws_region }}'
+  when: vault_server_token_output.token.SecretID is defined
+
+- name: Set fact for vault_server_token
+  set_fact:
+    vault_server_token: '{{ vault_server_token_output.token.SecretID }}'
+  when: vault_server_token_output.token.SecretID is defined
+
+- name: Copy vault server cert
+  ansible.builtin.copy:
+    dest: '/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem'
+    src: '../../base/files/vault/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem'
+    mode: '0644'
+  become: true
+
+- name: Copy vault server key
+  ansible.builtin.copy:
+    dest: '/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem'
+    src: '../../base/files/vault/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem'
+    mode: '0644'
+  become: true
+
+- name: Template vault.hcl with server config
+  ansible.builtin.template:
+    src: vault/server.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    mode: '0644'
+  become: true
+
+- name: Enable and start vault on systemd
+  ansible.builtin.systemd:
+    name: vault
+    enabled: true
+    state: started
+  become: true
+
+- name: Initialize vault using CLI
+  ansible.builtin.shell: |
+    vault operator init -address=http://127.0.0.1:8200 -recovery-shares=1 -recovery-threshold=1 -format=json
+  become: true
+  register: vault_init_output
+
+- name: Set fact for vault root token
+  set_fact:
+    vault_root_token: '{{ (vault_init_output.stdout | from_json).root_token }}'
+  when: vault_init_output.stdout is defined
+
+- name: Set fact for vault recovery keys b64
+  set_fact:
+    vault_recovery_keys_b64: '{{ (vault_init_output.stdout | from_json).recovery_keys_b64 }}'
+  when: vault_init_output.stdout is defined
+
+- name: Set fact for vault recovery keys hex
+  set_fact:
+    vault_recovery_keys_hex: '{{ (vault_init_output.stdout | from_json).recovery_keys_hex }}'
+  when: vault_init_output.stdout is defined
+
+- name: Set the vault root token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/vault/vault_root_token'
+    secret: '{{ vault_root_token }}'
+    region: '{{ AWS_REGION }}'
+  when: vault_root_token is defined
+
+- name: Set the vault recovery keys b64 in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/vault/vault_recovery_keys_b64'
+    secret: '{{ vault_recovery_keys_b64 }}'
+    region: '{{ AWS_REGION }}'
+  when: vault_recovery_keys_b64 is defined
+
+- name: Set the vault recovery keys hex in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/vault/vault_recovery_keys_hex'
+    secret: '{{ vault_recovery_keys_hex }}'
+    region: '{{ AWS_REGION }}'
+  when: vault_recovery_keys_hex is defined
+
+- name: Add Vault root token to shell profile
+  ansible.builtin.copy:
+    dest: /etc/profile.d/vault.sh
+    content: |
+      export VAULT_TOKEN="{{ vault_root_token }}"
+      export VAULT_ADDR="http://127.0.0.1:8200"
+  become: true
+  when: vault_root_token.stdout is defined
+
+- name: Enable AppRole auth method on vault
+  ansible.builtin.shell:
+    cmd: |
+      VAULT_TOKEN={{ vault_root_token }} \
+      VAULT_ADDR=http://127.0.0.1:8200 \
+      vault auth enable approle
+  become: true
+
+- name: Create AppRole for each of our microservices
+  hashivault_policy:
+    name: 'approle-{{ item.name }}'
+    rules: '{{ item.rules }}'
+    token: '{{ vault_root_token }}'
+    url: 'http://127.0.0.1:8200'
+    authtype: token
+  with_items:
+    - name: proxy
+      rules: |
+        path "pki/issue/proxy" {
+          capabilities = ["update"]
+        }
+        path "auth/token/create" {
+          capabilities = ["update"]
+        }
+        path "secret/proxy/*" {
+          capabilities = ["read"]
+        }
+    - name: billing
+      rules: |
+        path "pki/issue/billing" {
+          capabilities = ["update"]
+        }
+        path "auth/token/create" {
+          capabilities = ["update"]
+        }
+        path "secret/billing/*" {
+          capabilities = ["read"]
+        }
+    - name: history
+      rules: |
+        path "pki/issue/history" {
+          capabilities = ["update"]
+        }
+        path "auth/token/create" {
+          capabilities = ["update"]
+        }
+        path "secret/history/*" {
+          capabilities = ["read"]
+        }
+    - name: shop
+      rules: |
+        path "pki/issue/shop" {
+          capabilities = ["update"]
+        }
+        path "auth/token/create" {
+          capabilities = ["update"]
+        }
+        path "secret/shop/*" {
+          capabilities = ["read"]
+        }
+    - name: bot
+      rules: |
+        path "pki/issue/bot" {
+          capabilities = ["update"]
+        }
+        path "auth/token/create" {
+          capabilities = ["update"]
+        }
+        path "secret/bot/*" {
+          capabilities = ["read"]
+        }
+
+- name: Create the app role for all microservices
+  hashivault_approle_role:
+    name: '{{ item.name }}'
+    token_policies:
+      - 'approle-{{ item.name }}'
+    token: '{{ vault_root_token }}'
+    url: 'http://127.0.0.1:8200'
+    authtype: token
+  register: approle_output
+  with_items:
+    - name: proxy
+    - name: billing
+    - name: history
+    - name: shop
+    - name: bot
+
+- name: Create a vault agent policy to fetch app role secrets and ids
+  hashivault_policy:
+    name: 'vault-agent'
+    rules: |
+      path "auth/approle/role/*" {
+        capabilities = ["read"]
+      }
+    token: '{{ vault_root_token }}'
+    url: 'http://127.0.0.1:8200'
+    authtype: token
+
+- name: Create a vault agent token
+  hashivault_token_create:
+    display_name: 'vault-agent'
+    policies:
+      - 'vault-agent'
+    token: '{{ vault_root_token }}'
+    url: 'http://127.0.0.1:8200'
+    authtype: token
+  register: vault_agent_token
+
+- name: Store the vault agent token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/vault/agent_token'
+    secret: '{{ vault_agent_token.token.auth.client_token }}'
+    region: '{{ AWS_REGION }}'

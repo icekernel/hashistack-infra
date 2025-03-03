@@ -1,0 +1,39 @@
+- name: Configure vault with consul token
+  hosts: bastion
+
+  vars:
+    CONSUL_DOMAIN: 'consul'
+    ENVIRONMENT: 'prod1'
+    AWS_REGION: 'eu-central-1'
+
+  tasks:
+    - name: Get the vault token from aws secrets manager
+      ansible.builtin.set_fact:
+        vault_root_token: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT + '/vault/vault_root_token', region=AWS_REGION) }}"
+
+    - name: Create a vault agent policy to fetch app role secrets and ids
+      hashivault_policy:
+        name: 'vault-agent'
+        rules: |
+          path "auth/approle/role/*" {
+            capabilities = ["read"]
+          }
+        token: '{{ vault_root_token }}'
+        url: 'http://127.0.0.1:8200'
+        authtype: token
+
+    - name: Create a vault agent token
+      hashivault_token_create:
+        display_name: 'vault-agent'
+        policies:
+          - 'vault-agent'
+        token: '{{ vault_root_token }}'
+        url: 'http://127.0.0.1:8200'
+        authtype: token
+      register: vault_agent_token
+
+    - name: Store the vault agent token in AWS Secrets Manager
+      community.aws.secretsmanager_secret:
+        name: '/{{ ENVIRONMENT }}/vault/agent_token'
+        secret: '{{ vault_agent_token.token.auth.client_token }}'
+        region: '{{ AWS_REGION }}'

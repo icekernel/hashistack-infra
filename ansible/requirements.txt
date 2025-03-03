@@ -1,2 +1,4 @@
-ansible==6.1.0
+ansible
 boto3
+ansible-modules-hashivault
+hvac

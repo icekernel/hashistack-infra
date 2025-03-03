@@ -7,7 +7,7 @@ API_ID="enughwlwtc"
 STAGE="prod1"
 REGION="eu-central-1"
 DATA_TEMPLATE='{
-  "INSTANCE_TYPE": "c5.12xlarge",
+  "INSTANCE_TYPE": "c5.4xlarge",
   "lifecycle": "create",
   "eliza_config": {
     "env": {

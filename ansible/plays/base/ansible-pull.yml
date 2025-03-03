@@ -10,7 +10,7 @@
       ansible.builtin.copy:
         src: prism-eliza-20250127.pem
         dest: /home/ubuntu/.ssh/id_rsa
-        mode: 0600
+        mode: '0600'
 
     - name: Ensure python3-virtualenv installed
       ansible.builtin.apt:
@@ -26,13 +26,15 @@
         - ansible
         - boto3
         - python-consul
+        - hvac
+        - ansible-modules-hashivault
       become: true
 
     - name: Template ansible-pull.sh
       ansible.builtin.template:
         src: ./templates/ansible-pull.sh.j2
         dest: /home/ubuntu/ansible-pull.sh
-        mode: 0755
+        mode: '0755'
 
     - name: Set cron for ansible pull
       ansible.builtin.cron:
@@ -44,7 +46,7 @@
     - name: Create oneshot systemd unit for ansible pull
       ansible.builtin.copy:
         dest: /etc/systemd/system/ansible-pull.service
-        mode: 0644
+        mode: '0644'
         content: |
           [Unit]
           Description=ansible-pull service
@@ -65,6 +67,6 @@
     - name: Enable ansible-pull service
       ansible.builtin.systemd:
         name: ansible-pull
-        enabled: yes
-        daemon_reload: yes
+        enabled: true
+        daemon_reload: true
       become: true
