@@ -14,6 +14,11 @@ resource "aws_iam_role_policy_attachment" "ec2_describe_instances_bastion" {
   role       = aws_iam_role.bastion.name
 }
 
+resource "aws_iam_role_policy_attachment" "iam_get_roles_bastion" {
+  policy_arn = aws_iam_policy.iam_get_roles.arn
+  role       = aws_iam_role.bastion.name
+}
+
 resource "aws_cloudwatch_log_group" "bastion" {
   name              = "${var.environment}-bastion"
   retention_in_days = 120

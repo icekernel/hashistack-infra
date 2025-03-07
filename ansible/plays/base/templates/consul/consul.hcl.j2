@@ -2,6 +2,8 @@ datacenter = "{{ CONSUL_DATACENTER }}"
 encrypt = "{{ CONSUL_KEY }}"
 data_dir = "/opt/consul"
 
+client_addr = "0.0.0.0"
+
 advertise_addr = "{{ '{{' }} GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" {{ '}}' }}"
 
 recursors = [ "10.0.0.2" ]

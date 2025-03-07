@@ -3,6 +3,10 @@
 
   vars:
     CONSUL_DOMAIN: 'consul'
+    AWS_ACCOUNT: '686255952373'
+    instance_roles:
+      - nginx
+      - eliza
 
   tasks:
     - amazon.aws.ec2_metadata_facts:

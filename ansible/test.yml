@@ -1,0 +1,60 @@
+- name: Test
+  hosts: nginx
+
+  vars:
+    CONSUL_DOMAIN: 'consul'
+    ENVIRONMENT: 'prod1'
+    AWS_REGION: 'eu-central-1'
+    app_roles:
+      - proxy
+      - billing
+      - history
+      - shop
+      - bot
+
+  tasks:
+    - name: Get the vault token from aws secrets manager
+      ansible.builtin.set_fact:
+        vault_agent_token: '{{ lookup("amazon.aws.aws_secret", "/" + ENVIRONMENT + "/vault/agent_token", region=AWS_REGION) }}'
+
+    - name: Get the role id for each app role
+      hashivault_approle_role_id:
+        name: '{{ item }}'
+        token: '{{ vault_agent_token }}'
+        url: 'http://vault.service.consul:8200'
+        authtype: token
+      register: role_id_result
+      loop: '{{ app_roles }}'
+
+    - debug:
+        var: role_id_result
+
+    - name: Write all role ids to individual files
+      ansible.builtin.copy:
+        content: |
+          {{ item.data.role_id }}
+        dest: '/etc/vault.d/role_ids_{{ item.item }}'
+        mode: '0600'
+      loop: '{{ role_id_result.results }}'
+      become: true
+
+    - name: Create or update the vault secret for each app role
+      hashivault_approle_role_secret:
+        name: '{{ item.item }}'
+        token: '{{ vault_agent_token }}'
+        url: 'http://vault.service.consul:8200'
+        authtype: token
+      register: role_secret_result
+      loop: '{{ role_id_result.results }}'
+
+    - debug:
+        var: role_secret_result
+
+    - name: Write all secret ids to individual files
+      ansible.builtin.copy:
+        content: |
+          {{ item.data.secret_id }}
+        dest: '/etc/vault.d/secret_ids_{{ item.item.item }}'
+        mode: '0600'
+      loop: '{{ role_secret_result.results }}'
+      become: true

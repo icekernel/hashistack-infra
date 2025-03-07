@@ -1,15 +1,12 @@
 ---
-- name: Bootstrap ACL on consul
-  ansible.builtin.shell:
-    cmd: |
-      consul acl bootstrap
-  delegate_to: localhost
+- name: Bootstrap the ACL system
+  community.general.consul_acl_bootstrap:
   register: bootstrap_acl
 
 - name: Set fact for bootstrap secret id
   set_fact:
-    bootstrap_acl_secret: "{{ (bootstrap_acl.stdout | regex_search('SecretID:\\s+([0-9a-f-]+)', '\\1'))[0] }}"
-  when: bootstrap_acl.stdout is defined
+    bootstrap_acl_secret: '{{ bootstrap_acl.result.SecretID }}'
+  when: bootstrap_acl.changed is true
 
 - name: Set ACL token on AWS Secrets Manager
   community.aws.secretsmanager_secret:
@@ -17,14 +14,19 @@
     secret: '{{ bootstrap_acl_secret }}'
     state: present
     region: '{{ aws_region }}'
-  when: bootstrap_acl.stdout is defined
+  when: bootstrap_acl.changed is true
 
 - name: Add ACL token to shell profile
   ansible.builtin.copy:
     dest: /etc/profile.d/consul.sh
     content: 'export CONSUL_HTTP_TOKEN="{{ bootstrap_acl_secret }}"'
   become: true
-  when: bootstrap_acl.stdout is defined
+  when: bootstrap_acl.changed is true
+
+- name: Set fact for bootstrap secret id from Secrets Manager
+  set_fact:
+    bootstrap_acl_secret: "{{ lookup('amazon.aws.aws_secret', '/{{ ENVIRONMENT }}/consul/acl_token', region=aws_region) }}"
+  when: bootstrap_acl.changed is false
 
 - name: Create node registration policy
   community.general.consul_policy:
@@ -170,21 +172,20 @@
   become: true
   when: bootstrap_acl_secret is defined
 
-- name: Bootstrap ACL on nomad
-  ansible.builtin.shell:
-    cmd: |
-      NOMAD_ADDR=https://localhost:4646 \
-      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
-      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
-      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
-      nomad acl bootstrap
-  delegate_to: localhost
-  register: bootstrap_acl_nomad
+- name: Bootstrap Nomad ACL with nomad_token
+  community.general.nomad_token:
+    host: localhost
+    token_type: bootstrap
+    state: present
+    use_ssl: true
+    validate_certs: false
+  register: nomad_token
+  ignore_errors: true
 
 - name: Set fact for nomad secret id bootstrap
   set_fact:
-    bootstrap_acl_secret_nomad: "{{ (bootstrap_acl_nomad.stdout | regex_search('Secret ID\\s+=\\s+([0-9a-f-]+)', '\\1'))[0] }}"
-  when: bootstrap_acl_nomad.stdout is defined
+    bootstrap_acl_secret_nomad: '{{ nomad_token.result.secret_id }}'
+  when: nomad_token.changed is true
 
 - name: Set Nomad ACL token on AWS Secrets Manager
   community.aws.secretsmanager_secret:
@@ -192,14 +193,19 @@
     secret: '{{ bootstrap_acl_secret_nomad }}'
     state: present
     region: '{{ aws_region }}'
-  when: bootstrap_acl_nomad.stdout is defined
+  when: nomad_token.changed is true
+
+- name: Fetch the nomad acl token from AWS Secrets Manager
+  set_fact:
+    bootstrap_acl_secret_nomad: "{{ lookup('amazon.aws.aws_secret', '/{{ ENVIRONMENT }}/nomad/acl_token', region=aws_region) }}"
+  when: nomad_token.changed is false
 
 - name: Add ACL token to shell profile
   ansible.builtin.copy:
     dest: /etc/profile.d/nomad_acl.sh
     content: 'export NOMAD_TOKEN="{{ bootstrap_acl_secret_nomad }}"'
   become: true
-  when: bootstrap_acl_nomad.stdout is defined
+  when: bootstrap_acl_secret_nomad is defined
 
 - name: Create the consul policy for nomad agents
   community.general.consul_policy:
@@ -357,6 +363,10 @@
     mode: '0644'
   become: true
 
+- name: Set facts for server vault.hcl templating
+  set_fact:
+    vault_node_id: "{{ ENVIRONMENT }}-{{ role }}-{{ ansible_default_ipv4.address | replace('.', '-') }}"
+
 - name: Template vault.hcl with server config
   ansible.builtin.template:
     src: vault/server.hcl.j2
@@ -371,72 +381,88 @@
     state: started
   become: true
 
-- name: Initialize vault using CLI
-  ansible.builtin.shell: |
-    vault operator init -address=http://127.0.0.1:8200 -recovery-shares=1 -recovery-threshold=1 -format=json
-  become: true
+# - name: Initialize vault using CLI
+#   ansible.builtin.shell: |
+#     vault operator init -address=https://127.0.0.1:8200 -recovery-shares=1 -recovery-threshold=1 -format=json
+#   become: true
+#   register: vault_init_output
+
+- name: Initialize vault using hashivault
+  hashivault_init:
+    seal_method: recovery
+    recovery_shares: 1
+    recovery_threshold: 1
+    url: 'https://localhost:8200'
+    verify: false
   register: vault_init_output
 
 - name: Set fact for vault root token
   set_fact:
-    vault_root_token: '{{ (vault_init_output.stdout | from_json).root_token }}'
-  when: vault_init_output.stdout is defined
+    vault_root_token: '{{ vault_init_output.root_token }}'
+  when: vault_init_output.changed is true
 
 - name: Set fact for vault recovery keys b64
   set_fact:
-    vault_recovery_keys_b64: '{{ (vault_init_output.stdout | from_json).recovery_keys_b64 }}'
-  when: vault_init_output.stdout is defined
+    vault_recovery_keys_b64: '{{ vault_init_output.recovery_keys_base64 }}'
+  when: vault_init_output.changed is true
 
 - name: Set fact for vault recovery keys hex
   set_fact:
-    vault_recovery_keys_hex: '{{ (vault_init_output.stdout | from_json).recovery_keys_hex }}'
-  when: vault_init_output.stdout is defined
+    vault_recovery_keys_hex: '{{ vault_init_output.recovery_keys }}'
+  when: vault_init_output.changed is true
 
 - name: Set the vault root token in AWS Secrets Manager
   community.aws.secretsmanager_secret:
     name: '/{{ ENVIRONMENT }}/vault/vault_root_token'
     secret: '{{ vault_root_token }}'
-    region: '{{ AWS_REGION }}'
-  when: vault_root_token is defined
+    region: '{{ aws_region }}'
+  when: vault_init_output.changed is true
 
 - name: Set the vault recovery keys b64 in AWS Secrets Manager
   community.aws.secretsmanager_secret:
     name: '/{{ ENVIRONMENT }}/vault/vault_recovery_keys_b64'
     secret: '{{ vault_recovery_keys_b64 }}'
-    region: '{{ AWS_REGION }}'
-  when: vault_recovery_keys_b64 is defined
+    region: '{{ aws_region }}'
+  when: vault_init_output.changed is true
 
 - name: Set the vault recovery keys hex in AWS Secrets Manager
   community.aws.secretsmanager_secret:
     name: '/{{ ENVIRONMENT }}/vault/vault_recovery_keys_hex'
     secret: '{{ vault_recovery_keys_hex }}'
-    region: '{{ AWS_REGION }}'
-  when: vault_recovery_keys_hex is defined
+    region: '{{ aws_region }}'
+  when: vault_init_output.changed is true
+
+- name: Retrieve the vault root token from aws secrets manager
+  set_fact:
+    vault_root_token: "{{ lookup('amazon.aws.aws_secret', '/{{ ENVIRONMENT }}/vault/vault_root_token', region=aws_region) }}"
+  when: vault_init_output.changed is false
 
 - name: Add Vault root token to shell profile
   ansible.builtin.copy:
     dest: /etc/profile.d/vault.sh
     content: |
       export VAULT_TOKEN="{{ vault_root_token }}"
-      export VAULT_ADDR="http://127.0.0.1:8200"
+      export VAULT_ADDR="https://127.0.0.1:8200"
+      export VAULT_SKIP_VERIFY=true
   become: true
-  when: vault_root_token.stdout is defined
+  when: vault_root_token is defined
+
+# start AppRole
 
 - name: Enable AppRole auth method on vault
-  ansible.builtin.shell:
-    cmd: |
-      VAULT_TOKEN={{ vault_root_token }} \
-      VAULT_ADDR=http://127.0.0.1:8200 \
-      vault auth enable approle
-  become: true
+  hashivault_auth_method:
+    method_type: approle
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
 
 - name: Create AppRole for each of our microservices
   hashivault_policy:
     name: 'approle-{{ item.name }}'
     rules: '{{ item.rules }}'
     token: '{{ vault_root_token }}'
-    url: 'http://127.0.0.1:8200'
-    authtype: token
+    url: 'https://127.0.0.1:8200'
+    verify: false
   with_items:
     - name: proxy
       rules: |
@@ -500,8 +526,8 @@
     token_policies:
       - 'approle-{{ item.name }}'
     token: '{{ vault_root_token }}'
-    url: 'http://127.0.0.1:8200'
-    authtype: token
+    url: 'https://127.0.0.1:8200'
+    verify: false
   register: approle_output
   with_items:
     - name: proxy
@@ -517,9 +543,15 @@
       path "auth/approle/role/*" {
         capabilities = ["read"]
       }
+      path "auth/approle/role/+/role-id" {
+        capabilities = ["read"]
+      }
+      path "auth/approle/role/+/secret-id" {
+        capabilities = ["create", "update"]
+      }
     token: '{{ vault_root_token }}'
-    url: 'http://127.0.0.1:8200'
-    authtype: token
+    url: 'https://127.0.0.1:8200'
+    verify: false
 
 - name: Create a vault agent token
   hashivault_token_create:
@@ -527,12 +559,93 @@
     policies:
       - 'vault-agent'
     token: '{{ vault_root_token }}'
-    url: 'http://127.0.0.1:8200'
-    authtype: token
+    url: 'https://127.0.0.1:8200'
+    verify: false
   register: vault_agent_token
 
 - name: Store the vault agent token in AWS Secrets Manager
   community.aws.secretsmanager_secret:
     name: '/{{ ENVIRONMENT }}/vault/agent_token'
     secret: '{{ vault_agent_token.token.auth.client_token }}'
-    region: '{{ AWS_REGION }}'
+    region: '{{ aws_region }}'
+# end AppRole
+
+# start Vault AWS Auth method
+
+- name: Enable AWS auth method on vault
+  hashivault_auth_method:
+    method_type: aws
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+
+- name: Configure AWS auth method
+  hashivault_aws_auth_config:
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+
+- name: Create the Consul ACL policy for client agents
+  community.general.consul_policy:
+    name: 'consul-agent-{{ item }}'
+    rules: |
+      node_prefix "{{ ENVIRONMENT }}-{{ item }}-" {
+        policy = "write"
+      }
+      service_prefix "" {
+        policy = "read"
+      }
+    token: '{{ bootstrap_acl_secret }}'
+  loop: '{{ instance_roles }}'
+
+- name: Create Consul Agent policy
+  hashivault_policy:
+    name: 'consul-agent-{{ item }}'
+    rules: |
+      path "consul/creds/consul-agent-{{ item }}" {
+        capabilities = ["read"]
+      }
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+  loop: '{{ instance_roles }}'
+
+- name: Create the AWS role for Consul Agent
+  hashivault_aws_auth_role:
+    name: consul-agent-{{ item }}
+    auth_type: iam
+    bound_iam_principal_arn: arn:aws:iam::{{ AWS_ACCOUNT }}:role/{{ ENVIRONMENT }}-{{ item }}
+    policies:
+      - consul-agent-{{ item }}
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+  loop: '{{ instance_roles }}'
+
+- name: Configure the secret engine
+  hashivault_secret_engine:
+    name: consul
+    backend: consul
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+
+- name: Configure the consul secret engine
+  hashivault_consul_secret_engine_config:
+    consul_address: consul.service.consul:8500
+    scheme: http
+    consul_token: '{{ bootstrap_acl_secret }}'
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+
+- name: Create the consul-agent role
+  hashivault_consul_secret_engine_role:
+    name: 'consul-agent-{{ item }}'
+    policies:
+      - consul-agent-{{ item }}
+    token: '{{ vault_root_token }}'
+    url: 'https://127.0.0.1:8200'
+    verify: false
+  loop: '{{ instance_roles }}'
+# end Vault AWS Auth method

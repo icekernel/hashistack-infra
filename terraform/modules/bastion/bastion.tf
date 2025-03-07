@@ -1,3 +1,6 @@
+#
+# TODO: implement consul and vault snapshotting and restores
+#
 locals {
   role          = "bastion"
   instance_name = "${var.environment}-bastion"
@@ -144,6 +147,12 @@ resource "aws_autoscaling_group" "bastion" {
   tag {
     key                 = "Terraform"
     value               = "Use-Prism/eliza-infra"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key = "VaultServer"
+    value = var.environment
     propagate_at_launch = true
   }
 }

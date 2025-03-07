@@ -26,6 +26,7 @@
         - ansible
         - boto3
         - python-consul
+        - python-nomad
         - hvac
         - ansible-modules-hashivault
       become: true
