@@ -11,4 +11,4 @@
     dest: /etc/nomad.d/nomad.hcl
   become: true
   vars:
-    CONSUL_KEY: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT +'/nomad/client_token', region=aws_region) }}"
+    CONSUL_KEY: 'defined-on-bastion-first-run'

@@ -5,7 +5,7 @@ locals {
   rds_subnet_group_name = "${var.environment}-${var.database_name}-subnet-group"
   rds_sg_name = "${var.environment}-${var.database_name}-sg"
   port = var.rds_config.engine == "mysql" ? 3306 : 5432
-  snapshot_identifier = var.latest_snapshot ? data.aws_db_snapshot.latest_rds_snapshot[0].id : var.rds_config.snapshot_id
+  snapshot_identifier = var.latest_snapshot ? data.aws_db_snapshot.latest_rds_snapshot[0].id : var.named_snapshot ? var.rds_config.snapshot_id : null
 }
 
 

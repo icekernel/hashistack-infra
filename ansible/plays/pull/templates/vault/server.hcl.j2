@@ -3,15 +3,15 @@ listener "tcp" {
   cluster_address = "0.0.0.0:8201"
   tls_cert_file = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem"
   tls_key_file  = "/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server-key.pem"
-  tls_disable = 0
+  tls_disable = 1
   tls_disable_client_certs = "true"
 }
 
 # We can add an ELB, either internal or external, just for vault if desired.
 # or work with service discovery in consul. But for single node and service
 # discovery it works best like this:
-api_addr = "https://{{ ansible_default_ipv4.address }}:8200"
-cluster_addr = "https://{{ ansible_default_ipv4.address }}:8201"
+api_addr = "http://{{ ansible_default_ipv4.address }}:8200"
+cluster_addr = "http://{{ ansible_default_ipv4.address }}:8201"
 
 cluster_name = "{{ ENVIRONMENT }}-{{ aws_region }}.vault.{{ CONSUL_DOMAIN }}"
 
@@ -32,6 +32,6 @@ storage "raft" {
   node_id = "{{ vault_node_id }}"
   retry_join {
     # VaultServer tag is defined  in terraform/modules/bastion/bastion.tf
-    auto_join = "provider=aws region={{ aws_region }} tag_key=VaultServer tag_value={{ aws_region }}"
+    auto_join = "provider=aws region={{ aws_region }} tag_key=VaultServer tag_value={{ ENVIRONMENT }}"
   }
 }

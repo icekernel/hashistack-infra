@@ -34,5 +34,18 @@ performance {
   raft_multiplier = 1
 }
 
+config_entries {
+  bootstrap {
+    kind = "proxy-defaults"
+    name = "global"
+    config {
+      protocol = "http"
+    }
+    mesh_gateway = {
+      mode = "local"
+    }
+  }
+}
+
 # telemetry {}
 # configure this https://learn.hashicorp.com/tutorials/consul/monitor-datacenter-health

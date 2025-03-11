@@ -73,20 +73,20 @@
     # 3.2 - Hashistack one‑time run tasks
     #     - Doesn't run repeatedly to save on AWS Secrets Manager costs
 
-    - name: Check for consul_all one‑time run flag
-      ansible.builtin.stat:
-        path: /tmp/ansible_pull_once_consul_all.flag
-      register: run_once_flag_consul_all
+    # - name: Check for consul_all one‑time run flag
+    #   ansible.builtin.stat:
+    #     path: /tmp/ansible_pull_once_consul_all.flag
+    #   register: run_once_flag_consul_all
 
-    - name: Import consul client specific tasks
-      import_tasks: ./tasks/pull-once-consul-all.yml
-      when: not run_once_flag_consul_all.stat.exists
+    # - name: Import consul client specific tasks
+    #   import_tasks: ./tasks/pull-once-consul-all.yml
+    #   when: not run_once_flag_consul_all.stat.exists
 
-    - name: Create consul_all one‑time run flag
-      ansible.builtin.copy:
-        content: 'Ran on {{ ansible_date_time.iso8601 }}'
-        dest: /tmp/ansible_pull_once_consul_all.flag
-      when: not run_once_flag_consul_all.stat.exists
+    # - name: Create consul_all one‑time run flag
+    #   ansible.builtin.copy:
+    #     content: 'Ran on {{ ansible_date_time.iso8601 }}'
+    #     dest: /tmp/ansible_pull_once_consul_all.flag
+    #   when: not run_once_flag_consul_all.stat.exists
 
     - name: Check for consul_client one‑time run flag
       ansible.builtin.stat:

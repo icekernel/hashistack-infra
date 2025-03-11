@@ -21,6 +21,17 @@
   notify:
     - Restart consul
 
+- name: template nomad.hcl
+  ansible.builtin.template:
+    src: ../../base/templates/nomad/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+  become: true
+  vars:
+    CONSUL_KEY: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT +'/consul/nomad_agents', region=aws_region) }}"
+    CONSUL_DATACENTER: '{{ AWS_REGION }}-{{ ENVIRONMENT }}'
+  notify:
+    - Restart nomad
+
 - name: Copy vault server cert
   ansible.builtin.copy:
     dest: '/etc/vault.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-server.pem'
@@ -39,50 +50,6 @@
   ansible.builtin.set_fact:
     vault_node_id: "{{ ENVIRONMENT }}-{{ role }}-{{ ansible_default_ipv4.address | replace('.', '-') }}"
     vault_agent_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/vault/agent_token', region=aws_region) }}"
-    consul_node_registration_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/consul/vault_server_registration', region=aws_region) }}"
-    app_role_list:
-      - proxy
-      - billing
-      - history
-      - shop
-      - bot
-
-- name: Get role_id for AppRole
-  hashivault_approle_role_id:
-    name: '{{ item }}'
-    token: '{{ vault_agent_token }}'
-    url: 'https://vault.service.consul:8200'
-    verify: false
-  register: role_id_result
-  loop: '{{ app_role_list }}'
-
-- name: Write all role ids to individual files
-  ansible.builtin.copy:
-    content: |
-      {{ item.data.role_id }}
-    dest: '/etc/vault.d/role_ids_{{ item.item }}'
-    mode: '0600'
-  loop: '{{ role_id_result.results }}'
-  become: true
-
-- name: Create or update the vault secret for each app role
-  hashivault_approle_role_secret:
-    name: '{{ item.item }}'
-    token: '{{ vault_agent_token }}'
-    url: 'https://vault.service.consul:8200'
-    authtype: token
-    verify: false
-  register: role_secret_result
-  loop: '{{ role_id_result.results }}'
-
-- name: Write all secret ids to individual files
-  ansible.builtin.copy:
-    content: |
-      {{ item.data.secret_id }}
-    dest: '/etc/vault.d/secret_ids_{{ item.item.item }}'
-    mode: '0600'
-  loop: '{{ role_secret_result.results }}'
-  become: true
 
 - name: Copy vault agent cert
   ansible.builtin.copy:

@@ -172,6 +172,57 @@
   become: true
   when: bootstrap_acl_secret is defined
 
+- name: Create the consul policy for nomad agents
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'nomad-agents'
+    rules: |
+      agent_prefix "" {
+        policy = "read"
+      }
+      node_prefix "" {
+        policy = "write"
+      }
+      service_prefix "" {
+        policy = "write"
+      }
+      mesh {
+        policy = "write"
+      }
+  register: nomad_agents_policy
+  when: bootstrap_acl_secret is defined
+
+- name: Create nomad agents token on consul
+  community.general.consul_token:
+    policies:
+      - name: nomad-agents
+    description: 'Nomad agents token'
+    token: '{{ bootstrap_acl_secret }}'
+  register: nomad_agents_token
+  when: bootstrap_acl_secret is defined
+
+- name: Set the nomad agents token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/consul/nomad_agents'
+    secret: '{{ nomad_agents_token.token.SecretID }}'
+    region: '{{ aws_region }}'
+  when: bootstrap_acl_secret is defined
+
+- name: template nomad.hcl
+  ansible.builtin.template:
+    src: ../../base/templates/nomad/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+  become: true
+  vars:
+    CONSUL_KEY: "{{ lookup('amazon.aws.aws_secret', '/' + ENVIRONMENT +'/consul/nomad_agents', region=aws_region) }}"
+    CONSUL_DATACENTER: '{{ AWS_REGION }}-{{ ENVIRONMENT }}'
+
+- name: Restart nomad
+  ansible.builtin.systemd:
+    name: nomad
+    state: restarted
+  become: true
+
 - name: Bootstrap Nomad ACL with nomad_token
   community.general.nomad_token:
     host: localhost
@@ -207,41 +258,6 @@
   become: true
   when: bootstrap_acl_secret_nomad is defined
 
-- name: Create the consul policy for nomad agents
-  community.general.consul_policy:
-    token: '{{ bootstrap_acl_secret }}'
-    name: 'nomad-agents'
-    rules: |
-      agent_prefix "" {
-        policy = "read"
-      }
-
-      node_prefix "" {
-        policy = "write"
-      }
-
-      service_prefix "" {
-        policy = "write"
-      }
-  register: nomad_agents_policy
-  when: bootstrap_acl_secret is defined
-
-- name: Create nomad agents token on consul
-  community.general.consul_token:
-    policies:
-      - name: nomad-agents
-    description: 'Nomad agents token'
-    token: '{{ bootstrap_acl_secret }}'
-  register: nomad_agents_token
-  when: bootstrap_acl_secret is defined
-
-- name: Set the nomad agents token in AWS Secrets Manager
-  community.aws.secretsmanager_secret:
-    name: '/{{ ENVIRONMENT }}/consul/nomad_agents'
-    secret: '{{ nomad_agents_token.token.SecretID }}'
-    region: '{{ aws_region }}'
-  when: bootstrap_acl_secret is defined
-
 - name: Create client policy file
   ansible.builtin.copy:
     content: |
@@ -260,26 +276,26 @@
 
 - name: Apply client policy
   ansible.builtin.shell:
-    cmd: |
-      NOMAD_ADDR=https://localhost:4646 \
-      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
-      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
-      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
-      NOMAD_TOKEN={{ bootstrap_acl_secret_nomad }} \
-      nomad acl policy apply -description "Node Client Policy" nomad-client-policy /tmp/nomad-client-policy.hcl
+    cmd: nomad acl policy apply -description "Node Client Policy" nomad-client-policy /tmp/nomad-client-policy.hcl
+  environment:
+    NOMAD_ADDR: https://localhost:4646
+    NOMAD_CACERT: /etc/consul.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-ca.pem
+    NOMAD_CLIENT_CERT: /etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
+    NOMAD_CLIENT_KEY: /etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
+    NOMAD_TOKEN: '{{ bootstrap_acl_secret_nomad }}'
   delegate_to: localhost
   register: client_policy_result
   when: bootstrap_acl_secret_nomad is defined
 
 - name: Create client token
   ansible.builtin.shell:
-    cmd: |
-      NOMAD_ADDR=https://localhost:4646 \
-      NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem \
-      NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem \
-      NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem \
-      NOMAD_TOKEN={{ bootstrap_acl_secret_nomad }} \
-      nomad acl token create -name "client-token" -policy nomad-client-policy -type client -global -json
+    cmd: nomad acl token create -name "client-token" -policy nomad-client-policy -type client -global -json
+  environment:
+    NOMAD_ADDR: https://localhost:4646
+    NOMAD_CACERT: /etc/consul.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-ca.pem
+    NOMAD_CLIENT_CERT: /etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
+    NOMAD_CLIENT_KEY: /etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
+    NOMAD_TOKEN: '{{ bootstrap_acl_secret_nomad }}'
   delegate_to: localhost
   register: client_token_result
   when: bootstrap_acl_secret_nomad is defined
@@ -381,18 +397,12 @@
     state: started
   become: true
 
-# - name: Initialize vault using CLI
-#   ansible.builtin.shell: |
-#     vault operator init -address=https://127.0.0.1:8200 -recovery-shares=1 -recovery-threshold=1 -format=json
-#   become: true
-#   register: vault_init_output
-
 - name: Initialize vault using hashivault
   hashivault_init:
     seal_method: recovery
     recovery_shares: 1
     recovery_threshold: 1
-    url: 'https://localhost:8200'
+    url: 'http://localhost:8200'
     verify: false
   register: vault_init_output
 
@@ -442,133 +452,10 @@
     dest: /etc/profile.d/vault.sh
     content: |
       export VAULT_TOKEN="{{ vault_root_token }}"
-      export VAULT_ADDR="https://127.0.0.1:8200"
+      export VAULT_ADDR="http://127.0.0.1:8200"
       export VAULT_SKIP_VERIFY=true
   become: true
   when: vault_root_token is defined
-
-# start AppRole
-
-- name: Enable AppRole auth method on vault
-  hashivault_auth_method:
-    method_type: approle
-    token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
-    verify: false
-
-- name: Create AppRole for each of our microservices
-  hashivault_policy:
-    name: 'approle-{{ item.name }}'
-    rules: '{{ item.rules }}'
-    token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
-    verify: false
-  with_items:
-    - name: proxy
-      rules: |
-        path "pki/issue/proxy" {
-          capabilities = ["update"]
-        }
-        path "auth/token/create" {
-          capabilities = ["update"]
-        }
-        path "secret/proxy/*" {
-          capabilities = ["read"]
-        }
-    - name: billing
-      rules: |
-        path "pki/issue/billing" {
-          capabilities = ["update"]
-        }
-        path "auth/token/create" {
-          capabilities = ["update"]
-        }
-        path "secret/billing/*" {
-          capabilities = ["read"]
-        }
-    - name: history
-      rules: |
-        path "pki/issue/history" {
-          capabilities = ["update"]
-        }
-        path "auth/token/create" {
-          capabilities = ["update"]
-        }
-        path "secret/history/*" {
-          capabilities = ["read"]
-        }
-    - name: shop
-      rules: |
-        path "pki/issue/shop" {
-          capabilities = ["update"]
-        }
-        path "auth/token/create" {
-          capabilities = ["update"]
-        }
-        path "secret/shop/*" {
-          capabilities = ["read"]
-        }
-    - name: bot
-      rules: |
-        path "pki/issue/bot" {
-          capabilities = ["update"]
-        }
-        path "auth/token/create" {
-          capabilities = ["update"]
-        }
-        path "secret/bot/*" {
-          capabilities = ["read"]
-        }
-
-- name: Create the app role for all microservices
-  hashivault_approle_role:
-    name: '{{ item.name }}'
-    token_policies:
-      - 'approle-{{ item.name }}'
-    token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
-    verify: false
-  register: approle_output
-  with_items:
-    - name: proxy
-    - name: billing
-    - name: history
-    - name: shop
-    - name: bot
-
-- name: Create a vault agent policy to fetch app role secrets and ids
-  hashivault_policy:
-    name: 'vault-agent'
-    rules: |
-      path "auth/approle/role/*" {
-        capabilities = ["read"]
-      }
-      path "auth/approle/role/+/role-id" {
-        capabilities = ["read"]
-      }
-      path "auth/approle/role/+/secret-id" {
-        capabilities = ["create", "update"]
-      }
-    token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
-    verify: false
-
-- name: Create a vault agent token
-  hashivault_token_create:
-    display_name: 'vault-agent'
-    policies:
-      - 'vault-agent'
-    token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
-    verify: false
-  register: vault_agent_token
-
-- name: Store the vault agent token in AWS Secrets Manager
-  community.aws.secretsmanager_secret:
-    name: '/{{ ENVIRONMENT }}/vault/agent_token'
-    secret: '{{ vault_agent_token.token.auth.client_token }}'
-    region: '{{ aws_region }}'
-# end AppRole
 
 # start Vault AWS Auth method
 
@@ -576,13 +463,13 @@
   hashivault_auth_method:
     method_type: aws
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
 
 - name: Configure AWS auth method
   hashivault_aws_auth_config:
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
 
 - name: Create the Consul ACL policy for client agents
@@ -606,7 +493,7 @@
         capabilities = ["read"]
       }
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
   loop: '{{ instance_roles }}'
 
@@ -618,7 +505,7 @@
     policies:
       - consul-agent-{{ item }}
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
   loop: '{{ instance_roles }}'
 
@@ -627,7 +514,7 @@
     name: consul
     backend: consul
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
 
 - name: Configure the consul secret engine
@@ -636,7 +523,7 @@
     scheme: http
     consul_token: '{{ bootstrap_acl_secret }}'
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
 
 - name: Create the consul-agent role
@@ -645,7 +532,166 @@
     policies:
       - consul-agent-{{ item }}
     token: '{{ vault_root_token }}'
-    url: 'https://127.0.0.1:8200'
+    url: 'http://127.0.0.1:8200'
     verify: false
   loop: '{{ instance_roles }}'
 # end Vault AWS Auth method
+
+# start Nomad integration with Consul
+- name: Create consul acl auth method for nomad-workloads
+  community.general.consul_auth_method:
+    name: nomad-workloads
+    type: jwt
+    description: 'JWT auth method for Nomad services and workloads'
+    token: '{{ bootstrap_acl_secret }}'
+    config:
+      BoundAudiences:
+        - consul.io
+      ClaimMappings:
+        nomad_job_id: nomad_jobs_id
+        nomad_namespace: nomad_namespace
+        nomad_service: nomad_service
+        nomad_task: nomad_task
+      JWKSURL: 'https://nomad.service.{{ CONSUL_DOMAIN }}:4646/.well-known/jwks.json'
+      JWKSCACert: "{{ lookup('file', '../../base/files/consul/' + ENVIRONMENT + '-' + CONSUL_DOMAIN + '-agent-ca.pem') }}"
+      JWTSupportedAlgs:
+        - RS256
+
+- name: Create consul binding rule for nomad workloads
+  community.general.consul_binding_rule:
+    name: nomad-workloads
+    auth_method: nomad-workloads
+    token: '{{ bootstrap_acl_secret }}'
+    description: 'Binding rule for Nomad services and workloads'
+    bind_type: service
+    bind_name: '${value.nomad_service}'
+    selector: '"nomad_service" in value'
+
+- name: Create consul binding rule for nomad tasks
+  community.general.consul_binding_rule:
+    name: nomad-tasks
+    auth_method: nomad-workloads
+    token: '{{ bootstrap_acl_secret }}'
+    description: 'Binding rule for Nomad tasks'
+    bind_type: role
+    bind_name: 'nomad-tasks-${value.nomad_namespace}'
+    selector: '"nomad_service" not in value'
+
+- name: Create consul policy for nomad tasks
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: nomad-tasks
+    description: Policy for Nomad tasks
+    rules: |
+      key_prefix "" {
+        policy = "read"
+      }
+      node_prefix "" {
+        policy = "read"
+      }
+      service_prefix "" {
+        policy = "read"
+      }
+
+- name: Create consul ACL role for nomad tasks
+  community.general.consul_role:
+    policies:
+      - name: nomad-tasks
+    name: nomad-tasks-default
+    description: 'Consul role for nomad tasks in the default namespace'
+    token: '{{ bootstrap_acl_secret }}'
+  register: nomad_agents_token
+# end Nomad integration with Consul
+
+# start Nomad integration with Vault
+- name: Enable Nomad JWT auth method on vault
+  hashivault_auth_method:
+    method_type: jwt
+    mount_point: 'jwt-nomad'
+    description: 'Nomad JWT auth method'
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+    verify: false
+
+- name: Configure the Nomad JWT auth method
+  hashivault_write:
+    secret: 'jwt-nomad/config'
+    mount_point: 'auth'
+    data:
+      jwks_url: 'https://nomad.service.{{ CONSUL_DOMAIN }}:4646/.well-known/jwks.json'
+      jwks_ca_pem: "{{ lookup('file', '../../base/files/consul/' + ENVIRONMENT + '-' + CONSUL_DOMAIN + '-agent-ca.pem') }}"
+      jwt_supported_algs: ['RS256', 'EdDSA']
+      default_role: 'nomad-workloads'
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+
+- name: Create the Vaul ACL role for Nomad
+  hashivault_write:
+    secret: 'jwt-nomad/role/nomad-workloads'
+    mount_point: 'auth'
+    data:
+      role_type: jwt
+      bound_audiences: ['vault.io']
+      user_claim: /nomad_job_id
+      user_claim_json_pointer: true
+      claim_mappings:
+        nomad_namespace: nomad_namespace
+        nomad_job_id: nomad_job_id
+        nomad_task: nomad_task
+      token_type: service
+      token_policies: ['nomad-workloads']
+      token_period: 30m
+      token_explicit_max_ttl: 0
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+
+- name: Get the vault auth list
+  hashivault_auth_list:
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+  register: auth_list
+
+- name: Set fact for the jwt-nomad auth accessor
+  set_fact:
+    jwt_nomad_accessor: "{{ auth_list.backends['jwt-nomad/'].accessor }}"
+
+- name: Create vault policy for nomad workloads
+  hashivault_policy:
+    name: nomad-workloads
+    rules: |
+      path "kv/data/{{ '{{' }}identity.entity.aliases.{{ jwt_nomad_accessor }}.metadata.nomad_namespace}}/{{ '{{' }}identity.entity.aliases.{{ jwt_nomad_accessor }}.metadata.nomad_job_id}}/*" {
+        capabilities = ["read"]
+      }
+      path "kv/data/{{ '{{' }}identity.entity.aliases.{{ jwt_nomad_accessor }}.metadata.nomad_namespace}}/{{ '{{' }}identity.entity.aliases.{{ jwt_nomad_accessor }}.metadata.nomad_job_id}}" {
+        capabilities = ["read"]
+      }
+      path "kv/metadata/{{ '{{' }}identity.entity.aliases.{{ jwt_nomad_accessor }}.metadata.nomad_namespace}}/*" {
+        capabilities = ["list"]
+      }
+      path "kv/metadata/*" {
+        capabilities = ["list"]
+      }
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+
+- name: Enable vault kv secrets engine
+  hashivault_secret_engine:
+    name: kv
+    backend: kv
+    description: KV secrets engine
+    options:
+      version: '2'
+    token: '{{ vault_root_token }}'
+    url: http://127.0.0.1:8200
+# end Nomad integration with Vault
+
+- name: Create consul application token for eliza-proxy
+  community.general.consul_policy:
+    token: '{{ bootstrap_acl_secret }}'
+    name: 'eliza-proxy-token'
+    rules: |
+      key_prefix "eliza" {
+        policy = "read"
+      }
+  register: eliza_proxy_policy
+  when: bootstrap_acl_secret is defined

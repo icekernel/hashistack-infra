@@ -1,0 +1,24 @@
+- name: Test
+  hosts: all
+
+  tasks:
+    - name: add envoy apt key
+      ansible.builtin.apt_key:
+        url: https://apt.envoyproxy.io/signing.key
+        state: present
+      become: true
+
+    - name: add envoy apt repo
+      ansible.builtin.apt_repository:
+        repo: deb [arch=amd64] https://apt.envoyproxy.io jammy main
+        state: present
+      become: true
+
+    - name: install consul requirements
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        update_cache: yes
+        cache_valid_time: 3600
+      become: true
+      with_items:
+        - envoy

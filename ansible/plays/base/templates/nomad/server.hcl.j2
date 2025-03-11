@@ -8,7 +8,7 @@ tls {
   http = true
   rpc  = true
 
-  ca_file   = "/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem"
+  ca_file   = "/etc/consul.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-ca.pem"
   cert_file = "/etc/nomad.d/{{ ENVIRONMENT }}-server.pem"
   key_file = "/etc/nomad.d/{{ ENVIRONMENT }}-server-key.pem"
 

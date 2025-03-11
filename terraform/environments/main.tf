@@ -129,24 +129,26 @@ module "git" {
 #   rds_password = "Pr1sm!"
 # }
 
-# module "rds_postgres" {
-#   source = "../modules/rds"
-#   environment = var.WORKSPACE
-#   active = true
-#   database_name = "postgres"
-#   rds_config = ({
-#     snapshot_id = var.WORKSPACE == "prod1" ? "ml-production-final" : "ml-staging-final"
-#     engine = "postgres"
-#     engine_version = "14.10"
-#     parameter_group_name = "default.postgres14"
-#     enabled_cloudwatch_logs_exports = []
-#     allocated_storage = 400
-#     instance_class = "db.t3.micro"
-#   })
-#   nomad_security_group = module.docker.docker_sg
-#   bastion_security_group = module.bastion.bastion_sg
-#   vpc_id = module.vpc.vpc_id
-#   private_subnet_ids = module.vpc.private_subnets
-#   rds_username = "ml"
-#   rds_password = "Pr1sm!"
-# }
+module "rds_postgres" {
+  source = "../modules/rds"
+  environment = var.WORKSPACE
+  active = true
+  database_name = "eliza"
+  rds_config = ({
+    snapshot_id = "${var.WORKSPACE}-eliza-final"
+    engine = "postgres"
+    engine_version = "16.8"
+    parameter_group_name = "default.postgres16"
+    enabled_cloudwatch_logs_exports = []
+    allocated_storage = 40
+    instance_class = "db.t3.micro"
+  })
+  nomad_security_group = module.security.nomad_sg
+  bastion_security_group = module.bastion.bastion_sg
+  vpc_id = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnets
+  rds_username = "eliza"
+  rds_password = "El1z4Pr0xy!"
+  latest_snapshot = false
+  named_snapshot = false
+}

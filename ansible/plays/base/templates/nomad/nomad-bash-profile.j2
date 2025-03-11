@@ -1,5 +1,5 @@
 NOMAD_ADDR=https://localhost:4646
-NOMAD_CACERT=/etc/nomad.d/{{ ENVIRONMENT }}-ca.pem
+NOMAD_CACERT=/etc/consul.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-ca.pem
 NOMAD_CLIENT_CERT=/etc/nomad.d/{{ ENVIRONMENT }}-cli.pem
 NOMAD_CLIENT_KEY=/etc/nomad.d/{{ ENVIRONMENT }}-cli-key.pem
 

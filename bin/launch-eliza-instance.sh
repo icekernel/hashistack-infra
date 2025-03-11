@@ -212,7 +212,7 @@ DATA_TEMPLATE='{
     "meta": {
       "customerId": "%s",
       "githubRepoUrl": "https://github.com/elizaOS/eliza.git",
-      "checkoutRevision": "v0.1.8+build.1"
+      "checkoutRevision": "v0.1.8-alpha.1"
     }
   }
 }'

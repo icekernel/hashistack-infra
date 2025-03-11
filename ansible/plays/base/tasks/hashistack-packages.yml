@@ -11,6 +11,18 @@
     state: present
   become: true
 
+- name: add envoy apt key
+  ansible.builtin.apt_key:
+    url: https://apt.envoyproxy.io/signing.key
+    state: present
+  become: true
+
+- name: add envoy apt repo
+  ansible.builtin.apt_repository:
+    repo: deb [arch=amd64] https://apt.envoyproxy.io jammy main
+    state: present
+  become: true
+
 - name: install consul requirements
   ansible.builtin.apt:
     name: '{{ item }}'
@@ -23,6 +35,7 @@
     - consul-template
     - nomad
     - vault
+    - envoy
 
 - name: pip install python-nomad
   ansible.builtin.pip:

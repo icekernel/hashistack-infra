@@ -33,7 +33,8 @@ openssl genrsa -out "${VAULT_SERVER_KEY}" 2048
 # Generate Vault server certificate signing request (CSR)
 openssl req -new \
   -key "${VAULT_SERVER_KEY}" \
-  -subj "/CN=vault.service.${DOMAIN}, CN=localhost" \
+  -subj "/CN=vault.service.${DOMAIN}" \
+  -addext "subjectAltName=DNS:vault.service.${DOMAIN},DNS:localhost" \
   -out vault.csr
 
 # Sign the Vault server certificate using the Consul CA
@@ -53,7 +54,8 @@ openssl genrsa -out "${VAULT_AGENT_KEY}" 2048
 # Generate Vault agent certificate signing request (CSR)
 openssl req -new \
   -key "${VAULT_AGENT_KEY}" \
-  -subj "/CN=vault-agent.service.${DOMAIN}, CN=localhost" \
+  -subj "/CN=vault-agent.service.${DOMAIN}" \
+  -addext "subjectAltName=DNS:vault-agent.service.${DOMAIN},DNS:localhost" \
   -out agent.csr
 
 # Sign the Vault agent certificate using the Consul CA
