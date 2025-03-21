@@ -1,0 +1,6 @@
+pydantic
+pydantic-core
+base58
+solders
+boto3
+pyjwt

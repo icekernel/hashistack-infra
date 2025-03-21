@@ -1,0 +1,4 @@
+MINUTE = 60; HOUR = 60*MINUTE; DAY = 24*HOUR
+
+SSM_AUTH_SECRET_KEY_PATH = "/launchpad/Auth/SecretKey"
+

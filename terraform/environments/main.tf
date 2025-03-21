@@ -83,6 +83,11 @@ module "provisioner" {
   env             = var.WORKSPACE
 }
 
+module "eliza-apigateway" {
+  source          = "../modules/eliza-apigateway"
+  env             = var.WORKSPACE
+}
+
 module "git" {
   source          = "../modules/git"
   env             = var.WORKSPACE
