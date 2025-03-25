@@ -1,4 +1,10 @@
 locals {
+  prefix = "${var.env}-${var.context_prefix}"
+  tags = {
+    Provisioner = "terraform"
+    Environment = var.env
+    Repository  = "https://github.com/Use-Prism/eliza-infra"
+  }
   ecr_repositories = flatten([
     for repo_name, repo_data in var.repositories : [
       "${local.prefix}-${repo_name}"

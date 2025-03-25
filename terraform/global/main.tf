@@ -9,5 +9,5 @@ module "git" {
   env             = var.WORKSPACE
   github_token    = var.GITHUB_TOKEN
   github_owner    = var.GITHUB_OWNER
-  repositories    = module.environment.git_repositories
+  repositories    = module.globals.git_repositories
 }

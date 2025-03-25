@@ -88,6 +88,12 @@ module "eliza-apigateway" {
   env             = var.WORKSPACE
 }
 
+module "ecr" {
+  source = "../modules/ecr"
+  env    = var.WORKSPACE
+  repositories = module.globals.git_repositories
+}
+
 # module "docker" {
 #   source          = "../modules/docker"
 #   vpc_id          = module.vpc.vpc_id

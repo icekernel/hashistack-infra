@@ -18,7 +18,3 @@ output "nginx_instance_type" {
 output "docker_instance_type" {
   value = local.docker_instance_type[var.environment]
 }
-
-output "git_repositories" {
-  value = local.git_repositories[var.environment]
-}
