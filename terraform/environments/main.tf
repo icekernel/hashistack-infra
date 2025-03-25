@@ -88,14 +88,6 @@ module "eliza-apigateway" {
   env             = var.WORKSPACE
 }
 
-module "git" {
-  source          = "../modules/git"
-  env             = var.WORKSPACE
-  github_token    = var.GITHUB_TOKEN
-  github_owner    = var.GITHUB_OWNER
-  repositories    = module.environment.git_repositories
-}
-
 # module "docker" {
 #   source          = "../modules/docker"
 #   vpc_id          = module.vpc.vpc_id

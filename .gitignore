@@ -2,3 +2,6 @@
 .ansible/
 /venv
 .DS_Store
+
+*.backup
+terraform/global/secrets.auto.tfvars
