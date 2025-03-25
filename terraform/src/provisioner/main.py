@@ -165,7 +165,6 @@ def create_instance_profile(iam_client, environment, role, customer_id, secret_n
                     f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/node_registration*",
                     f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/consul/nomad_agents*",
                     f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/nomad/client_token*",
-                    f"arn:aws:secretsmanager:{AWS_REGION}:{AWS_ACCOUNT}:secret:/{environment}/vault/agent_token*",
                 ],
             },
         ],

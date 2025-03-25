@@ -49,7 +49,6 @@
 - name: Set facts for client vault.hcl templating
   ansible.builtin.set_fact:
     vault_node_id: "{{ ENVIRONMENT }}-{{ role }}-{{ ansible_default_ipv4.address | replace('.', '-') }}"
-    vault_agent_token: "{{ lookup('amazon.aws.aws_secret', '/' ~ ENVIRONMENT ~ '/vault/agent_token', region=aws_region) }}"
 
 - name: Copy vault agent cert
   ansible.builtin.copy:

@@ -186,9 +186,6 @@
       service_prefix "" {
         policy = "write"
       }
-      mesh {
-        policy = "write"
-      }
   register: nomad_agents_policy
   when: bootstrap_acl_secret is defined
 

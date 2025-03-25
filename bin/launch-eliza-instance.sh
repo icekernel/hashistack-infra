@@ -1,11 +1,32 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-CUSTOMER_ID=$1
+# Validate required parameters
+if [ -z "${1:-}" ]; then
+  echo "Error: STAGE parameter is required"
+  echo "Usage: $0 STAGE CUSTOMER_ID"
+  exit 1
+fi
 
-API_ID="enughwlwtc"
-STAGE="prod1"
+if [ -z "${2:-}" ]; then
+  echo "Error: CUSTOMER_ID parameter is required"
+  echo "Usage: $0 STAGE CUSTOMER_ID"
+  exit 1
+fi
+
+STAGE=$1
+CUSTOMER_ID=$2
 REGION="eu-central-1"
+
+# Look up the API_ID programmatically based on the stage
+API_NAME="${STAGE}-eliza-provisioner"
+API_ID=$(aws apigatewayv2 get-apis --region ${REGION} --query "Items[?Name=='${API_NAME}'].ApiId" --output text)
+
+if [ -z "${API_ID}" ]; then
+  echo "Error: Could not find HTTP API Gateway with name '${API_NAME}'"
+  exit 1
+fi
+
 DATA_TEMPLATE='{
   "INSTANCE_TYPE": "c5.4xlarge",
   "lifecycle": "create",
