@@ -30,7 +30,9 @@ Example scripts that take the customerId as a parameter are available in the
 After agent instances finish building themselves and launching, the agent will
 become available through the nginx proxy on a URL similar to this:
 
-https://prod1-nginx.click1.prism/ABC123XYZ42
+https://prod1-nginx.click1.prism/ABC123XYZ42/agents
 
 Given that `ABC123XYZ42` would be the agent key you supplied in the
 `eliza_config.meta.customerId` field of the json payload.
+
+# ApiGW route

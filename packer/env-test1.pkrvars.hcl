@@ -1,2 +1,2 @@
-ami_region = "ca-central-1"
+ami_region = "eu-central-1"
 environment = "test1"

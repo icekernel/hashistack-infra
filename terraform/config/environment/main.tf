@@ -38,7 +38,20 @@ locals {
   }
 
   git_repositories = {
-    test1   = {}
+    test1   = {
+      "billing" = {
+        description = "Eliza Billing API"
+      }
+      "history" = {
+        description = "Eliza history API"
+      }
+      "proxy" = {
+        description = "Eliza proxy API"
+      }
+      "shop" = {
+        description = "Eliza shop API"
+      }
+    }
     test2   = {}
     prod2   = {}
     prod1   = {

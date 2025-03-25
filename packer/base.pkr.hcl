@@ -59,9 +59,9 @@ source "amazon-ebs" "ubuntu" {
   instance_type = var.instance_type
   region        = "${var.ami_region}"
 
-  ssh_keypair_name = "${var.environment}-prism1-eliza-20250127"
-  ssh_private_key_file = "../ansible/plays/base/files/prism-eliza-20250127.pem"
-  # temporary_key_pair_type = "ed25519"
+  #ssh_keypair_name = "${var.environment}-prism1-eliza-20250127"
+  #ssh_private_key_file = "../ansible/plays/base/files/prism-eliza-20250127.pem"
+  temporary_key_pair_type = "ed25519"
 
   launch_block_device_mappings {
     device_name = "/dev/sda1"
