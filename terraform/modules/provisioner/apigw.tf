@@ -1,5 +1,5 @@
 resource "aws_apigatewayv2_api" "provisioner" {
-  name          = "eliza-provisioner"
+  name          = "${var.env}-eliza-provisioner"
   protocol_type = "HTTP"
 }
 
@@ -18,7 +18,7 @@ resource "aws_apigatewayv2_route" "provisioner_route" {
 }
 
 resource "aws_cloudwatch_log_group" "api_gw_provisioner" {
-  name              = "/aws/apigateway/${var.env}-${aws_apigatewayv2_api.provisioner.name}"
+  name              = "/aws/apigateway/${aws_apigatewayv2_api.provisioner.name}"
   retention_in_days = 5
 }
 

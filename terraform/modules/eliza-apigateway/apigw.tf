@@ -1,11 +1,11 @@
 # Create a REST API Gateway
 resource "aws_api_gateway_rest_api" "gateway" {
-  name        = "eliza-gateway"
+  name        = "${var.env}-eliza-gateway"
   description = "Eliza API Gateway"
 }
 
 resource "aws_cloudwatch_log_group" "api_gw_gateway" {
-  name              = "/aws/apigateway/${var.env}-${aws_api_gateway_rest_api.gateway.name}"
+  name              = "/aws/apigateway/${aws_api_gateway_rest_api.gateway.name}"
   retention_in_days = 5
 }
 
