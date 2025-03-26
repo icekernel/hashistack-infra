@@ -300,7 +300,7 @@ def create_customer_resources(payload):
     aws_region = payload.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
     ami_id = payload.get("AMI_ID", os.environ.get("AMI_ID", ""))
     instance_type = payload.get(
-        "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "t3.medium")
+        "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "c5.2xlarge")
     )
     subnet_id = payload.get("SUBNET_ID", "")
     ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))

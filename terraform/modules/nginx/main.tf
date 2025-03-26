@@ -189,7 +189,7 @@ module "alb" {
       backend_port     = 80
       target_type      = "instance"
       health_check = {
-        path                = "/ping" # traefik health check
+        path                = "/healthz"
         interval            = 10
         timeout             = 5
         healthy_threshold   = 2
