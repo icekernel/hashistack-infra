@@ -692,3 +692,18 @@
       }
   register: eliza_proxy_policy
   when: bootstrap_acl_secret is defined
+
+- name: Create consul application token for eliza-proxy
+  community.general.consul_token:
+    policies:
+      - name: eliza-proxy-token
+    description: 'App token for eliza-proxy'
+    token: '{{ bootstrap_acl_secret }}'
+  register: eliza_proxy_token
+
+- name: Set the eliza-proxy-token in AWS Secrets Manager
+  community.aws.secretsmanager_secret:
+    name: '/{{ ENVIRONMENT }}/consul/eliza-proxy-token'
+    secret: '{{ eliza_proxy_token.token.SecretID }}'
+    region: '{{ aws_region }}'
+  when: eliza_proxy_token.changed is true
