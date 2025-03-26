@@ -13,7 +13,7 @@ LOG.setLevel(logging.INFO)
 
 AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 AWS_ACCOUNT = os.environ.get("AMI_OWNER", "686255952373")
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod1")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "test1")
 ROLE = os.environ.get("ROLE", "eliza")
 AMI_TAG_FILTERS = os.environ.get(
     "AMI_TAG_FILTERS", '{"Name": f"{ENVIRONMENT}-{ROLE}-*"}'
@@ -25,7 +25,7 @@ USER_DATA = ""
 def get_latest_ami(ec2, owner, tag_filters):
     """
     Returns the ImageId of the latest AMI matching the provided owner and tag filters.
-    tag_filters should be a dict (e.g., {"Role": "eliza", "Environment": "prod1"})
+    tag_filters should be a dict (e.g., {"Role": "eliza", "Environment": "test1"})
     """
     filters = []
     for k, v in tag_filters.items():
@@ -295,7 +295,7 @@ def register_service_with_consul(
 def create_customer_resources(payload):
 
     # Retrieve parameters
-    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "test1"))
     role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
     aws_region = payload.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
     ami_id = payload.get("AMI_ID", os.environ.get("AMI_ID", ""))
@@ -306,7 +306,7 @@ def create_customer_resources(payload):
     ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
     ami_tag_filters = payload.get(
         "AMI_TAG_FILTERS",
-        os.environ.get("AMI_TAG_FILTERS", '{"Name": "prod1-eliza-*"}'),
+        os.environ.get("AMI_TAG_FILTERS", '{"Name": "test1-eliza-*"}'),
     )
     user_data = payload.get("USER_DATA", "")
 
@@ -454,7 +454,7 @@ def create_customer_resources(payload):
 def update_customer_resources(payload):
     # Extract relevant data from the event
     try:
-        environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+        environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "test1"))
         role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
         eliza_config = payload.get("eliza_config", None)
         if not eliza_config:
@@ -524,7 +524,7 @@ def update_customer_resources(payload):
 
 def destroy_customer_resources(payload):
     # Pick required variables from event or environment
-    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "prod1"))
+    environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "test1"))
     role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
     eliza_config = payload.get("eliza_config", {})
     meta = eliza_config.get("meta", {})
@@ -853,7 +853,7 @@ if __name__ == "__main__":
       "meta": {
         "customerId": "ABC123XYZ42",
         "githubRepoUrl": "https://github.com/elizaOS/eliza.git",
-        "checkoutRevision": "v0.1.8+build.1"
+        "checkoutRevision": "v0.1.8-alpha.1"
       }
     }"""
     # Parse, update the customerId, then reserialize the JSON

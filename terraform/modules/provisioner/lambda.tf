@@ -88,6 +88,7 @@ resource "aws_lambda_function" "instance_provisioner" {
   }
   environment {
     variables = merge({
+        "ENVIROMENT" = var.env,
       },
       var.EXTRA_ENV_VARS
     )
