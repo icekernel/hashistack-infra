@@ -5,5 +5,9 @@
     role: nginx
 
   tasks:
-    - name: Setup nginx
-      ansible.builtin.import_tasks: ./tasks/setup-nginx.yml
+    # - name: Setup nginx
+    #   ansible.builtin.import_tasks: ./tasks/setup-nginx.yml
+
+    - name: Debug
+      ansible.builtin.debug:
+        msg: 'Role: {{ role }}'

@@ -4,6 +4,9 @@ client {
     path = "/etc/consul.d/{{ ENVIRONMENT }}-{{ CONSUL_DOMAIN }}-agent-ca.pem"
     read_only = true
   }
+  meta {
+    "role" = "{{ role }}"
+  }
 }
 tls {
   http = true
