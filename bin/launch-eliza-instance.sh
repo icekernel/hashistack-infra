@@ -29,6 +29,7 @@ fi
 
 DATA_TEMPLATE='{
   "INSTANCE_TYPE": "c5.4xlarge",
+  "ENVIRONMENT": "%s",
   "lifecycle": "create",
   "eliza_config": {
     "env": {
@@ -238,7 +239,7 @@ DATA_TEMPLATE='{
   }
 }'
 
-printf -v BODY "${DATA_TEMPLATE}" "${CUSTOMER_ID}"
+printf -v BODY "${DATA_TEMPLATE}" "${STAGE}" "${CUSTOMER_ID}"
 
 ENDPOINT="https://${API_ID}.execute-api.${REGION}.amazonaws.com/${STAGE}/provisioner"
 

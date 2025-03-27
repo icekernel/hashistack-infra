@@ -1,3 +1,8 @@
+module "workspace_validation" {
+  source      = "../modules/workspace"
+  env = var.WORKSPACE
+}
+
 module "vpc" {
   source      = "../modules/vpc"
   aws_region  = module.environment.aws_region

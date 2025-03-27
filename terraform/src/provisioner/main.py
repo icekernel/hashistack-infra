@@ -306,7 +306,7 @@ def create_customer_resources(payload):
     ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
     ami_tag_filters = payload.get(
         "AMI_TAG_FILTERS",
-        os.environ.get("AMI_TAG_FILTERS", '{"Name": "test1-eliza-*"}'),
+        os.environ.get("AMI_TAG_FILTERS", f'{{"Name": "{environment}-eliza-*"}}'),
     )
     user_data = payload.get("USER_DATA", "")
 
