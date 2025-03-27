@@ -9,6 +9,8 @@
 
 - name: configure hashistack client
   ansible.builtin.import_playbook: ../ansible/plays/base/hashistack-client.yml
+  vars:
+    role: nginx
 
 - name: configure docker role
   ansible.builtin.import_playbook: ../ansible/plays/role/docker/main.yml

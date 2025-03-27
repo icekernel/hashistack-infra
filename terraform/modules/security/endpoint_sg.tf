@@ -1,6 +1,6 @@
 resource "aws_security_group" "endpoint_sg" {
   name        = "${var.environment}-endpoint"
-  description = "Allow inbound traffic to self referencign group"
+  description = "Allow inbound traffic to self referencing group"
   vpc_id      = var.vpc_id
 
   # allow all from self

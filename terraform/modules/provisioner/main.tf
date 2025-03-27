@@ -11,8 +11,8 @@ variable "subnet_ids" {
   type = list(string)
 }
 
-variable "security_group" {
-  description = "Security group ID for the Lambda function."
+variable "security_group_ids" {
+  description = "List of security group IDs for the Lambda function."
   type = list(string)
 }
 
@@ -35,7 +35,7 @@ variable "EXTRA_ENV_VARS" {
   default = {}
 }
 variable "lambda_timeout" {
-  default = 30
+  default = 90
   description = "The amount of time your Lambda Function has to run in seconds."
 }
 variable "lambda_memory" {

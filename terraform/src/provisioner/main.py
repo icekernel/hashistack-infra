@@ -436,7 +436,8 @@ def create_customer_resources(payload):
             #     instance_id, environment, role, customer_id, consul_token
             # )
 
-            break  # Instance launched successfully
+            LOG.info("Instance %s launched successfully", instance_id)
+            break
         except Exception as e:
             LOG.info("Attempt %d: Error launching instance: %s", attempt, str(e))
             if attempt == max_retries:

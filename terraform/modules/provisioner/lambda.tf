@@ -71,6 +71,29 @@ resource "aws_cloudwatch_log_group" "lambda" {
   retention_in_days = 5
 }
 
+resource "aws_security_group" "lambda_outbound_sg" {
+  name        = "${local.lambda_full_name}-outbound"
+  description = "Allow all outbound traffic for Lambda function"
+  vpc_id      = data.aws_subnet.first_subnet.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${local.lambda_full_name}-outbound"
+    Environment = var.env
+  }
+}
+
+# Get VPC ID from the first subnet
+data "aws_subnet" "first_subnet" {
+  id = var.subnet_ids[0]
+}
+
 resource "aws_lambda_function" "instance_provisioner" {
   function_name    = local.lambda_full_name
   # filename         = data.archive_file.lambda_package.output_path
@@ -84,7 +107,7 @@ resource "aws_lambda_function" "instance_provisioner" {
   memory_size = var.lambda_memory
   vpc_config {
     subnet_ids = var.subnet_ids
-    security_group_ids = var.security_group
+    security_group_ids = concat(var.security_group_ids, [aws_security_group.lambda_outbound_sg.id])
   }
   environment {
     variables = merge({
