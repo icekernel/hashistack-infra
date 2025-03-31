@@ -5,7 +5,7 @@ CUSTOMER_ID=$1
 
 API_ID="enughwlwtc"
 STAGE="prod1"
-REGION="eu-central-1"
+REGION="sa-east-1"
 DATA_TEMPLATE='{
   "lifecycle": "update",
   "eliza_config": {

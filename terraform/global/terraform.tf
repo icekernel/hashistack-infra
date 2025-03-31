@@ -10,10 +10,10 @@ terraform {
 
   # backend "remote" {
   #   hostname     = "app.terraform.io"
-  #   organization = "prism"
+  #   organization = "icekernel"
 
   #   workspaces {
-  #     prefix = "prism1-"
+  #     prefix = "icekernelcloud01-"
   #   }
   # }
 

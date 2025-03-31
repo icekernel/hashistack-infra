@@ -4,10 +4,10 @@ plugin: aws_ec2
 #aws_access_key: ''
 #aws_secret_key: ''
 
-#aws_profile: prism
+#aws_profile: conrado-aws-ice01
 
 regions:
-  - eu-central-1
+  - sa-east-1
 
 keyed_groups:
   - key: tags
@@ -25,7 +25,6 @@ hostnames:
 
 filters:
   tag:Environment: prod1
-
 # exclude_filters:
 #   - tag:Name:
 #       - 'Legacy Production'

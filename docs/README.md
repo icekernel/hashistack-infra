@@ -19,7 +19,7 @@ curl -X POST \
       "customerId": "ABC123XYZ42"
     }
   }'
-  https://enughwlwtc.execute-api.eu-central-1.amazonaws.com/prod1/provisioner
+  https://enughwlwtc.execute-api.sa-east-1.amazonaws.com/prod1/provisioner
 ```
 
 Example scripts that take the customerId as a parameter are available in the
@@ -30,7 +30,7 @@ Example scripts that take the customerId as a parameter are available in the
 After agent instances finish building themselves and launching, the agent will
 become available through the nginx proxy on a URL similar to this:
 
-https://prod1-nginx.click1.prism/ABC123XYZ42/agents
+https://prod1-nginx.icekernelcloud01.com/ABC123XYZ42/agents
 
 Given that `ABC123XYZ42` would be the agent key you supplied in the
 `eliza_config.meta.customerId` field of the json payload.

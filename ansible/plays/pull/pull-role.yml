@@ -3,7 +3,7 @@
 
   vars:
     CONSUL_DOMAIN: 'consul'
-    AWS_ACCOUNT: '686255952373'
+    AWS_ACCOUNT: '711054401116'
     instance_roles:
       - nginx
       - eliza

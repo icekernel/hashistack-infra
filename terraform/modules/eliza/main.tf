@@ -161,7 +161,7 @@ resource "aws_security_group" "eliza" {
 #   tags = {
 #     Environment = var.environment
 #     Role        = local.role
-#     Terraform   = "Use-Prism/eliza-infra"
+#     Terraform   = "icekernel/hashistack-infra"
 #   }
 # }
 
@@ -211,7 +211,7 @@ resource "aws_security_group" "eliza" {
 #   tags = {
 #     Environment = var.environment
 #     Role        = local.role
-#     Terraform   = "Use-Prism/eliza-infra"
+#     Terraform   = "icekernel/hashistack-infra"
 #   }
 # }
 
@@ -260,6 +260,6 @@ resource "aws_security_group" "eliza" {
 #   tags = {
 #     Environment = var.environment
 #     Role        = local.role
-#     Terraform   = "Use-Prism/eliza-infra"
+#     Terraform   = "icekernel/hashistack-infra"
 #   }
 # }

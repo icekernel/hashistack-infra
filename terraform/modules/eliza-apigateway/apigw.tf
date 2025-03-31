@@ -157,7 +157,7 @@ resource "aws_api_gateway_integration" "proxy_integration" {
   passthrough_behavior   = "WHEN_NO_MATCH"
 
   # For an HTTP integration with public ALB:
-  uri                     = "https://${var.env}-nginx.prism1.click/{proxy}"
+  uri                     = "https://${var.env}-nginx.icekernelcloud01.com/{proxy}"
 
   request_parameters = {
     "integration.request.path.proxy" = "method.request.path.proxy"

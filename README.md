@@ -1,16 +1,4 @@
-# Infra for prism1.click
-
-## TODO
-
-- [x] state on terraform cloud
-- [ ] log-rotation for all backend services
-- [ ] monitoring
-  - [ ] instance metrics dashboard
-  - [ ] app logs
-  - [ ] metrics and log alarms
-- [x] different TF Cloud workspaces for staging and prod
-- [x] nomad ci/cd
-- [ ] create a terraform system user on AWS for AWS key on TFC
+# Infra for icekernelcloud01.com
 
 ## Configuration
 

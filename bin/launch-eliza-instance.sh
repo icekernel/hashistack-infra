@@ -16,7 +16,7 @@ fi
 
 STAGE=$1
 CUSTOMER_ID=$2
-REGION="eu-central-1"
+REGION="sa-east-1"
 
 # Look up the API_ID programmatically based on the stage
 API_NAME="${STAGE}-eliza-provisioner"

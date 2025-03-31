@@ -3,7 +3,7 @@ locals {
   tags = {
     Provisioner = "terraform"
     Environment = var.env
-    Repository  = "https://github.com/Use-Prism/eliza-infra"
+    Repository  = "https://github.com/icekernel/hashistack-infra"
   }
   ecr_repositories = flatten([
     for repo_name, repo_data in var.repositories : [

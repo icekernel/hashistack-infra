@@ -146,7 +146,7 @@ resource "aws_autoscaling_group" "bastion" {
 
   tag {
     key                 = "Terraform"
-    value               = "Use-Prism/eliza-infra"
+    value               = "icekernel/hashistack-infra"
     propagate_at_launch = true
   }
 

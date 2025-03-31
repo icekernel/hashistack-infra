@@ -9,10 +9,10 @@
       ansible.builtin.debug:
         var: role
 
-    - name: Install prism1 motd
+    - name: Install icekernel motd
       template:
-        src: templates/99-prism1-motd.j2
-        dest: /etc/update-motd.d/99-prism1-motd
+        src: templates/99-icekernel-motd.j2
+        dest: /etc/update-motd.d/99-icekernel-motd
         mode: 0755
       become: true
 

@@ -11,8 +11,8 @@ import requests
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.INFO)
 
-AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
-AWS_ACCOUNT = os.environ.get("AMI_OWNER", "686255952373")
+AWS_REGION = os.environ.get("AWS_REGION", "sa-east-1")
+AWS_ACCOUNT = os.environ.get("AMI_OWNER", "711054401116")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "test1")
 ROLE = os.environ.get("ROLE", "eliza")
 AMI_TAG_FILTERS = os.environ.get(
@@ -297,13 +297,13 @@ def create_customer_resources(payload):
     # Retrieve parameters
     environment = payload.get("ENVIRONMENT", os.environ.get("ENVIRONMENT", "test1"))
     role = payload.get("ROLE", os.environ.get("ROLE", "eliza"))
-    aws_region = payload.get("AWS_REGION", os.environ.get("AWS_REGION", "eu-central-1"))
+    aws_region = payload.get("AWS_REGION", os.environ.get("AWS_REGION", "sa-east-1"))
     ami_id = payload.get("AMI_ID", os.environ.get("AMI_ID", ""))
     instance_type = payload.get(
         "INSTANCE_TYPE", os.environ.get("INSTANCE_TYPE", "c5.2xlarge")
     )
     subnet_id = payload.get("SUBNET_ID", "")
-    ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "686255952373"))
+    ami_owner = payload.get("AMI_OWNER", os.environ.get("AMI_OWNER", "711054401116"))
     ami_tag_filters = payload.get(
         "AMI_TAG_FILTERS",
         os.environ.get("AMI_TAG_FILTERS", f'{{"Name": "{environment}-eliza-*"}}'),
@@ -352,7 +352,9 @@ def create_customer_resources(payload):
         return {"statusCode": 500, "body": json.dumps({"error": "No valid AMI found."})}
 
     # VPC/subnet/SG lookups
-    product_id = payload.get("PRODUCT_ID", os.environ.get("PRODUCT_ID", "prism1"))
+    product_id = payload.get(
+        "PRODUCT_ID", os.environ.get("PRODUCT_ID", "icekernelcloud01")
+    )
     if not subnet_id:
         vpc_id = lookup_vpc_id(ec2, product_id, environment)
         private_subnets = lookup_private_subnets(ec2, vpc_id, product_id, environment)
@@ -587,7 +589,7 @@ def destroy_customer_resources(payload):
         LOG.error("Error deleting IAM role %s: %s", role_name, str(e))
 
     # Terminate EC2 instance(s) associated with the customer
-    ec2 = boto3.client("ec2", region_name=os.environ.get("AWS_REGION", "eu-central-1"))
+    ec2 = boto3.client("ec2", region_name=os.environ.get("AWS_REGION", "sa-east-1"))
     try:
         reservations = ec2.describe_instances(
             Filters=[

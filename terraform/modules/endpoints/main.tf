@@ -2,7 +2,7 @@ locals {
   common_tags = {
     Product     = var.product
     Environment = var.environment
-    Terraform   = "UsePrism/eliza-infra"
+    Terraform   = "icekernel/hashistack-infra"
   }
 }
 

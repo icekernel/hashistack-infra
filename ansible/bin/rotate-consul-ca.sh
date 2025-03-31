@@ -9,12 +9,12 @@ VALID_DAYS=3650
 if [ -z "$ENV" ]; then
   echo "Usage: "
   echo ""
-  echo "$ $0 <env> <?dc='eu-central-1'>"
+  echo "$ $0 <env> <?dc='sa-east-1'>"
   echo ""
   exit 1
 fi
 if [ -z "$DC" ]; then
-  DC="eu-central-1"
+  DC="sa-east-1"
   echo "Using default DC: $DC"
 fi
 

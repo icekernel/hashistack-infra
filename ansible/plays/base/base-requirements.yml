@@ -28,7 +28,7 @@
     # - name: Append ssh key on ubuntu user's authorized_keys
     #   ansible.builtin.lineinfile:
     #     dest: /home/ubuntu/.ssh/authorized_keys
-    #     line: '{{ lookup("file", "./files/prism-eliza-20250127.pem.pub") }}'
+    #     line: '{{ lookup("file", "./files/icekernelcloud01-20250331.pem.pub") }}'
     #   become: true
 
     - name: Link python to python3

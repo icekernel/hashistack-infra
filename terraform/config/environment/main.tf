@@ -30,10 +30,10 @@ locals {
   }
 
   aws_region = {
-    test1   = "eu-central-1"
-    test2   = "eu-central-1"
-    prod1   = "eu-central-1"
-    prod2   = "eu-central-1"
-    global  = "eu-central-1"
+    test1   = "sa-east-1"
+    test2   = "sa-east-1"
+    prod1   = "sa-east-1"
+    prod2   = "sa-east-1"
+    global  = "sa-east-1"
   }
 }

@@ -1,36 +1,36 @@
 output "product" {
-  value = "prism1"
+  value = "eliza"
 }
 
 output "aws_region" {
-  value = "eu-central-1"
+  value = "sa-east-1"
 }
 
 output "account_id" {
-  value = "686255952373"
+  value = "711054401116"
 }
 
 output "domain" {
-  value = "prism1.click"
+  value = "icekernelcloud01.com"
 }
 
 output "route53_zone_id" {
-  value = "Z00401101Y262GI1S5IJ9" # prism1.click
+  value = "Z0401772240U357QN2G31" # icekernelcloud01.com
 }
 
 output "git_repositories" {
   value = {
     "billing" = {
-      description = "Eliza Billing API"
+      description = "Billing API"
     }
     "history" = {
-      description = "Eliza history API"
+      description = "history API"
     }
     "proxy" = {
-      description = "Eliza proxy API"
+      description = "proxy API"
     }
     "shop" = {
-      description = "Eliza shop API"
+      description = "Shop API"
     }
   }
 }

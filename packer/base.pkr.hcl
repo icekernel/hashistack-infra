@@ -43,7 +43,7 @@ variable "ami_tag_os_release" {
 
 variable "ami_region" {
   type = string
-  default = "eu-central-1"
+  default = "sa-east-1"
 }
 
 variable "instance_type" {
@@ -59,8 +59,8 @@ source "amazon-ebs" "ubuntu" {
   instance_type = var.instance_type
   region        = "${var.ami_region}"
 
-  #ssh_keypair_name = "${var.environment}-prism1-eliza-20250127"
-  #ssh_private_key_file = "../ansible/plays/base/files/prism-eliza-20250127.pem"
+  #ssh_keypair_name = "${var.environment}-icekernelcloud01-20250331"
+  #ssh_private_key_file = "../ansible/plays/base/files/icekernelcloud01-20250331.pem"
   temporary_key_pair_type = "ed25519"
 
   launch_block_device_mappings {
@@ -87,7 +87,7 @@ source "amazon-ebs" "ubuntu" {
       Name = "${var.environment}-${var.role}-${local.timestamp}"
       Role = "${var.role}"
       Environment = "${var.environment}"
-      Packer = "Use-Prism/eliza-infra"
+      Packer = "icekernel/hashistack-infra"
   }
 
   run_tags = {
@@ -97,14 +97,14 @@ source "amazon-ebs" "ubuntu" {
       Name = "${var.environment}-${var.role}-${local.timestamp}"
       Role = "${var.role}"
       Environment = "${var.environment}"
-      Packer = "Use-Prism/eliza-infra"
+      Packer = "icekernel/hashistack-infra"
   }
 
 }
 
 build {
 
-  name = "prism1-${var.role}"
+  name = "icekernel-${var.role}"
 
   sources = [
     "source.amazon-ebs.ubuntu"

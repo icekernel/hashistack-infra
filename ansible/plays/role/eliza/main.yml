@@ -4,7 +4,7 @@
   vars:
     role: eliza
 
-    git_repo: 'git@github.com:Use-Prism/{{ role }}.git'
+    git_repo: 'git@github.com:icekernel/hashistack-role-{{ role }}.git'
     srv_base_dir: /srv/{{ role }}
     git_repo_dest: '{{ srv_base_dir }}/{{ role }}.git'
     checkout_dest: '{{ srv_base_dir }}/{{ role }}'

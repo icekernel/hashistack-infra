@@ -1,2 +1,2 @@
-ami_region = "eu-central-1"
+ami_region = "sa-east-1"
 environment = "prod2"

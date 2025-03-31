@@ -3,7 +3,7 @@
   hosts: eliza
 
   vars:
-    aws_account: '686255952373'
+    aws_account: '711054401116'
     env: 'prod1'
     role: 'eliza'
     s3_bucket: '{{ aws_account }}-eliza-agents'

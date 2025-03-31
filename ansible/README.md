@@ -20,7 +20,7 @@ ansible-playbook plays/role/eliza/main.yml
 ## building vs developing
 
 ansible is configured for running in a total of 3 different modes in this
-[eliza-infra](https://github.com/Use-Prism/eliza-infra) repository.
+[eliza-infra](https://github.com/icekernel/hashistack-infra) repository.
 
 - pull
 - push

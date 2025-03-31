@@ -57,7 +57,7 @@ job "ml" {
         OPEN_AI_API_KEY = "{{ DJANGO_ENV.OPEN_AI_API_KEY }}"
       }
       config {
-        image = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/prism1-ml:{{ GIT_REF }}"
+        image = "{{ AWS_ACCOUNT }}.dkr.ecr.{{ AWS_REGION }}.amazonaws.com/icekernel-ml:{{ GIT_REF }}"
         command = "python"
         args = ["manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
         ports = ["ml"]
@@ -68,7 +68,7 @@ job "ml" {
         port     = "ml"
         tags     = [
           "traefik.enable=true",
-          "traefik.http.routers.ml.rule=Host(`ml.prism1.click`) || HostRegexp(`{environment:[a-z0-9]+}-ml.prism1.click`)",
+          "traefik.http.routers.ml.rule=Host(`ml.icekernelcloud01.com`) || HostRegexp(`{environment:[a-z0-9]+}-ml.icekernelcloud01.com`)",
         ]
       }
     }

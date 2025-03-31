@@ -3,12 +3,12 @@
   hosts: all
 
   vars:
-    ansible_pull_repo: git@github.com:Use-Prism/eliza-infra.git
+    ansible_pull_repo: git@github.com:icekernel/hashistack-infra.git
 
   tasks:
     - name: Install GitHub infra repo private ssh key
       ansible.builtin.copy:
-        src: prism-eliza-20250127.pem
+        src: icekernelcloud01-20250331.pem
         dest: /home/ubuntu/.ssh/id_rsa
         mode: '0600'
 

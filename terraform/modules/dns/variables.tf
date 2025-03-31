@@ -4,5 +4,5 @@ variable "route53_zone_id" {
 
 variable "domain" {
   type = string
-  default = "prism1.click"
+  default = "icekernelcloud01.com"
 }

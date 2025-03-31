@@ -154,7 +154,7 @@ module "asg" {
   tags = {
     Environment = var.environment
     Role        = local.role
-    Terraform   = "Use-Prism/eliza-infra"
+    Terraform   = "icekernel/hashistack-infra"
   }
 }
 
@@ -204,7 +204,7 @@ module "alb" {
   tags = {
     Environment = var.environment
     Role        = local.role
-    Terraform   = "Use-Prism/eliza-infra"
+    Terraform   = "icekernel/hashistack-infra"
   }
 }
 

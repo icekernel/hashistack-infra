@@ -5,7 +5,7 @@ set -euo pipefail
 cd $(dirname $0)/../
 
 ENV=${1}
-DC=${2:-eu-central-1}
+DC=${2:-sa-east-1}
 DOMAIN=consul
 
 VALID_DAYS=3650
@@ -13,7 +13,7 @@ VALID_DAYS=3650
 if [ -z "$ENV" ]; then
   echo "Usage: "
   echo ""
-  echo "$ $0 <env> <?dc='eu-central-1'>"
+  echo "$ $0 <env> <?dc='sa-east-1'>"
   echo ""
   exit 1
 fi

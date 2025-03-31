@@ -1,5 +1,5 @@
 locals {
-  namespace  = "prism"
+  namespace  = "icekernelcloud01"
   role       = "backend"
   repository = "${local.namespace}-${local.role}"
 }
@@ -73,7 +73,7 @@ module "ecr" {
   })
 
   tags = {
-    Terraform = "Use-Prism/eliza-infra"
+    Terraform = "icekernel/hashistack-infra"
     Role      = local.role
   }
 }

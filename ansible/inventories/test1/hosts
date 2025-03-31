@@ -12,4 +12,4 @@ tag_Role_bastion
 tag_Role_nginx
 
 [aws_ec2:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -J test1-bastion.prism1.click'
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -J test1-bastion.icekernelcloud01.com'

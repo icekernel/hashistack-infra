@@ -18,6 +18,6 @@ resource "aws_security_group" "endpoint_sg" {
   tags = {
     "Name" = "${var.environment}-endpoint"
     "Environment" = var.environment
-    "Terraform" = "UsePrism/eliza-infra"
+    "Terraform" = "icekernel/hashistack-infra"
   }
 }
