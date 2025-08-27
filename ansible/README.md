@@ -1,51 +1,84 @@
-# ansible
+# Ansible Configuration Management
 
-please check [galaxy-collections.list](galaxy-collections.list) for the right
-versions of ansible galaxy collections being used here.
+This directory contains Ansible playbooks and configurations for managing the HashiCorp stack infrastructure.
 
-## try to pick up some ansible
+## Prerequisites
 
-this will ping all hosts
+### Galaxy Collections
 
-```console
+Install the required Ansible Galaxy collections:
+
+```bash
+ansible-galaxy collection install -r galaxy-collections.list
+```
+
+Check [galaxy-collections.list](galaxy-collections.list) for specific versions.
+
+## Quick Start
+
+### Testing Connectivity
+
+Verify connection to all hosts:
+
+```bash
 ansible all -m ping
 ```
 
-apply the eliza main play
+### Running Playbooks
 
-```console
+Apply the Eliza role playbook:
+
+```bash
 ansible-playbook plays/role/eliza/main.yml
 ```
 
-## building vs developing
+Apply all configurations:
 
-ansible is configured for running in a total of 3 different modes in this
-[eliza-infra](https://github.com/icekernel/hashistack-infra) repository.
+```bash
+ansible-playbook -i inventories/<environment>/aws_ec2.yml all.yml
+```
 
-- pull
-- push
-- packer
+## Execution Modes
 
-playbooks are mostly supposed to run in any of these modes, at least it is how
-I am developing them.
+Ansible is configured to run in three different modes in this [hashistack-infra](https://github.com/icekernel/hashistack-infra) repository:
 
-the [`../packer/`](../packer/) directory playbooks pull plays from inside this
-very ansible directory, and configuration is meant to be kept as close as
-possible between the different ansible run environments.
+### 1. Pull Mode
+Instances pull their configuration directly from the repository. Used for self-updating infrastructure.
 
-Note that not every type of playbook should run in any one of these modes, but
-they "should" be able to execute properly... especially useful for running
-in check mode against instances.
+### 2. Push Mode
+Traditional Ansible approach where the control node pushes configuration to target hosts. Used for development and immediate updates.
 
-### building
+### 3. Packer Mode
+Used during AMI building. Playbooks are executed as part of the image creation process.
 
-building is done in packer, go se [`../packer/`](../packer/)
+The [`../packer/`](../packer/) directory pulls plays from this Ansible directory, ensuring configuration consistency across all execution modes.
 
-### developing
+Note: While not every playbook needs to run in all modes, they should be able to execute properly, especially useful for running in check mode against instances.
 
-- spin up a new stack with an instance that only has nginx answering on port 80.
-- use ansible to remote control that box until it is fully built with ansible
-- make sure new playbook runs a build with packer
-- launch stack with new ami
+## Development Workflow
 
-todo: add molecule and virtualbox or containerd
+### Building AMIs
+
+AMI building is handled by Packer. See [`../packer/`](../packer/) for details.
+
+### Developing Playbooks
+
+1. **Initial Setup**: Spin up a new stack with a basic instance (e.g., nginx on port 80)
+2. **Development**: Use Ansible push mode to iteratively develop and test playbooks
+3. **Validation**: Ensure the playbook runs successfully with Packer
+4. **Deployment**: Launch stack with the newly built AMI
+
+### Future Improvements
+
+- Add Molecule for testing
+- Support for VirtualBox or containerd environments
+
+## Directory Structure
+
+- `plays/` - Playbook definitions organized by function
+  - `base/` - Base system configuration
+  - `role/` - Role-specific configurations (bastion, docker, eliza, nginx)
+  - `pull/` - Pull-mode specific plays
+  - `push/` - Push-mode specific plays
+- `inventories/` - Environment-specific inventory configurations
+- `bin/` - Certificate and key rotation scripts

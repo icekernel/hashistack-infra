@@ -1,16 +1,67 @@
-# docs
+# API Documentation
 
-## Agent provisioner API
+## Agent Provisioner API
 
-The agent provisioner API has been made availabe as a Lambda function that is
-proxied by ApiGW.
+The agent provisioner API is a Lambda function exposed through API Gateway for managing agent lifecycles.
 
-It works by sending it a json mime type and a body payload with the desired
-lifecycle and configuration:
-
-eg. for destroying an instance
+### API Endpoint
 
 ```
+https://<api-gateway-id>.execute-api.sa-east-1.amazonaws.com/<environment>/provisioner
+```
+
+### Lifecycle Operations
+
+#### Create Instance
+
+Creates a new agent instance with specified configuration:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lifecycle": "create",
+    "INSTANCE_TYPE": "c5.4xlarge",
+    "ENVIRONMENT": "prod1",
+    "eliza_config": {
+      "meta": {
+        "customerId": "ABC123XYZ42"
+      },
+      "env": {
+        "SERVER_PORT": "3000",
+        "CACHE_STORE": "database"
+      }
+    }
+  }' \
+  https://<api-gateway-id>.execute-api.sa-east-1.amazonaws.com/prod1/provisioner
+```
+
+#### Update Instance
+
+Updates an existing agent instance:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lifecycle": "update",
+    "meta": {
+      "customerId": "ABC123XYZ42"
+    },
+    "eliza_config": {
+      "env": {
+        "SERVER_PORT": "3001"
+      }
+    }
+  }' \
+  https://<api-gateway-id>.execute-api.sa-east-1.amazonaws.com/prod1/provisioner
+```
+
+#### Destroy Instance
+
+Terminates an agent instance:
+
+```bash
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{
@@ -18,21 +69,46 @@ curl -X POST \
     "meta": {
       "customerId": "ABC123XYZ42"
     }
-  }'
-  https://enughwlwtc.execute-api.sa-east-1.amazonaws.com/prod1/provisioner
+  }' \
+  https://<api-gateway-id>.execute-api.sa-east-1.amazonaws.com/prod1/provisioner
 ```
 
-Example scripts that take the customerId as a parameter are available in the
-[../bin](../bin/) directory.
+### Helper Scripts
 
-## Accessing the launched agents
+Convenience scripts are available in the [`../bin`](../bin/) directory:
 
-After agent instances finish building themselves and launching, the agent will
-become available through the nginx proxy on a URL similar to this:
+```bash
+# Launch new instance
+./bin/launch-eliza-instance.sh prod1 ABC123XYZ42
 
+# Update existing instance
+./bin/update-eliza-instance.sh prod1 ABC123XYZ42
+
+# Destroy instance
+./bin/destroy-eliza-instance.sh prod1 ABC123XYZ42
+
+# List backups
+./bin/list-backups.sh
+```
+
+## Accessing Launched Agents
+
+Once an agent instance completes its initialization:
+
+1. The agent becomes available through the Nginx proxy
+2. Access URL format: `https://<environment>-nginx.icekernelcloud01.com/<customerId>/agents`
+
+### Example
+
+For customer ID `ABC123XYZ42` in production:
+
+```
 https://prod1-nginx.icekernelcloud01.com/ABC123XYZ42/agents
+```
 
-Given that `ABC123XYZ42` would be the agent key you supplied in the
-`eliza_config.meta.customerId` field of the json payload.
+## API Gateway Routes
 
-# ApiGW route
+The API Gateway configuration includes:
+- `/provisioner` - Main provisioning endpoint
+- Authentication via Lambda authorizer
+- Environment-specific deployments (prod1, test1)
